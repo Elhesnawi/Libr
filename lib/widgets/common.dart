@@ -34,6 +34,7 @@ Future<bool> runAction(
   FutureOr<void> Function() action, {
   String? success,
   int ms = 700,
+  void Function(String message)? onError,
 }) async {
   final messenger = ScaffoldMessenger.of(context);
   void say(String text) {
@@ -47,7 +48,11 @@ Future<bool> runAction(
     if (success != null) say(success);
     return true;
   } on LibraryException catch (e) {
-    say(e.message);
+    if (onError != null) {
+      onError(e.message);
+    } else {
+      say(e.message);
+    }
     return false;
   }
 }

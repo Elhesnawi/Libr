@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 /// خطأ مفهوم للمستخدم (رسالته عربية جاهزة للعرض).
@@ -81,6 +83,10 @@ class Book {
     required this.isDigital,
     required this.totalCopies,
     required this.availableCopies,
+    this.publishDate,
+    this.coverBytes,
+    this.fileName,
+    this.pages = 12,
   });
 
   final int id;
@@ -91,10 +97,39 @@ class Book {
   int totalCopies;
   int availableCopies;
 
-  bool get isAvailable => availableCopies > 0;
+  /// تاريخ النشر (يدخله أمين المكتبة عند إضافة الكتاب).
+  DateTime? publishDate;
+
+  /// صورة الغلاف (بايتات الصورة). لاحقاً تصبح رابطاً في التخزين السحابي.
+  Uint8List? coverBytes;
+
+  /// اسم ملف PDF للكتاب الرقمي. لاحقاً يصبح مساراً في التخزين السحابي.
+  String? fileName;
+
+  /// عدد صفحات القارئ التجريبي للكتب الرقمية.
+  int pages;
+
+  /// الكتاب الرقمي متاح دائماً (يُقرأ ويُحمَّل بلا استعارة).
+  bool get isAvailable => isDigital || availableCopies > 0;
 
   /// رمز الباركود الظاهر على الكتاب الورقي.
   String get code => 'BK-${id.toString().padLeft(4, '0')}';
+}
+
+class Rating {
+  Rating({
+    required this.id,
+    required this.bookId,
+    required this.username,
+    required this.stars,
+    this.comment = '',
+  });
+
+  final int id;
+  final int bookId;
+  final String username;
+  int stars;
+  String comment;
 }
 
 class Loan {

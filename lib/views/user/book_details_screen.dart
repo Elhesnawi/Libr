@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/services/library_store.dart';
+import 'package:librarry_app/utils/arabic_text.dart';
+import 'package:librarry_app/views/user/reader_screen.dart';
+import 'package:librarry_app/widgets/book_cover.dart';
 import 'package:librarry_app/widgets/common.dart';
 import 'package:librarry_app/widgets/library_app_bar.dart';
+import 'package:librarry_app/widgets/rating_section.dart';
 
 class BookDetailsScreen extends StatelessWidget {
   const BookDetailsScreen({super.key, required this.bookId});
@@ -59,19 +63,7 @@ class _Body extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 70,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  book.isDigital ? Icons.picture_as_pdf_outlined : Icons.menu_book_outlined,
-                  size: 34,
-                  color: scheme.primary,
-                ),
-              ),
+              BookCover(book: book, width: 78, height: 104, iconSize: 34),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -94,6 +86,10 @@ class _Body extends StatelessWidget {
                       'الرمز: ${book.code}',
                       style: text.bodySmall?.copyWith(color: scheme.onPrimaryContainer),
                     ),
+                    Text(
+                      'تاريخ النشر: ${book.publishDate == null ? '—' : arabicDate(book.publishDate!)}',
+                      style: text.bodySmall?.copyWith(color: scheme.onPrimaryContainer),
+                    ),
                   ],
                 ),
               ),
@@ -101,28 +97,40 @@ class _Body extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        Row(
-          children: [
-            Text('النسخ المتاحة: ${book.availableCopies} من ${book.totalCopies}'),
-            const Spacer(),
-            StatusChip(
-              label: book.isAvailable ? 'متاح' : 'غير متاح',
-              tone: book.isAvailable ? Tone.success : Tone.danger,
-            ),
-          ],
-        ),
+        if (!book.isDigital)
+          Row(
+            children: [
+              Text('النسخ المتاحة: ${book.availableCopies} من ${book.totalCopies}'),
+              const Spacer(),
+              StatusChip(
+                label: book.isAvailable ? 'متاح' : 'غير متاح',
+                tone: book.isAvailable ? Tone.success : Tone.danger,
+              ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              const Text('نسخة رقمية (PDF)'),
+              const Spacer(),
+              Text(
+                book.fileName ?? '',
+                textDirection: TextDirection.ltr,
+                style: text.bodySmall,
+              ),
+            ],
+          ),
         if (book.isDigital) ...[
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: FilledButton.icon(
                   icon: const Icon(Icons.chrome_reader_mode_outlined),
-                  label: const Text('قراءة'),
-                  onPressed: () => showMessage(
-                    context,
-                    'القراءة والتحميل تعملان بعد ربط ملفات الكتب بالخادم',
-                  ),
+                  label: Text(store.readingPage(book.id) > 0
+                      ? 'تابع القراءة (صفحة ${store.readingPage(book.id)})'
+                      : 'قراءة'),
+                  onPressed: () => openScreen(context, ReaderScreen(bookId: book.id)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -130,16 +138,18 @@ class _Body extends StatelessWidget {
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.download_outlined),
                   label: const Text('تحميل'),
-                  onPressed: () => showMessage(
+                  onPressed: () => runAction(
                     context,
-                    'القراءة والتحميل تعملان بعد ربط ملفات الكتب بالخادم',
+                    () => store.downloadBook(book.id),
+                    success: 'تم التحميل (محاكاة). في التطبيق الحقيقي يُحفظ الملف على جهازك',
+                    ms: 800,
                   ),
                 ),
               ),
             ],
           ),
         ],
-        if (!isStaff) ...[
+        if (!isStaff && !book.isDigital) ...[
           const SizedBox(height: 12),
           if (book.isAvailable)
             FilledButton.icon(
@@ -177,6 +187,19 @@ class _Body extends StatelessWidget {
             },
           ),
         ],
+        if (!isStaff && book.isDigital) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: Icon(isFav ? Icons.bookmark : Icons.bookmark_border),
+            label: Text(isFav ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'),
+            onPressed: () {
+              final added = store.toggleFavorite(book.id);
+              showMessage(context, added ? 'أُضيف إلى المفضلة' : 'أُزيل من المفضلة');
+            },
+          ),
+        ],
+        const SizedBox(height: 20),
+        RatingSection(bookId: book.id),
       ],
     );
   }

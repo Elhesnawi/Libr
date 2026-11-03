@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/widgets/common.dart';
 import 'package:librarry_app/widgets/library_app_bar.dart';
+import 'package:librarry_app/widgets/rating_section.dart';
 
 class _Metric extends StatelessWidget {
   const _Metric({required this.label, required this.value, this.danger = false});
@@ -138,6 +139,7 @@ class ReportsScreen extends StatelessWidget {
             if (m.value > monthMax) monthMax = m.value;
           }
           final late = store.lateLoans;
+          final rated = store.topRated();
           final scheme = Theme.of(context).colorScheme;
 
           return ListView(
@@ -174,6 +176,23 @@ class ReportsScreen extends StatelessWidget {
               ),
               const SectionTitle('الكتب الأكثر استعارة'),
               for (final e in top) _BarRow(label: e.key.title, value: e.value, max: topMax),
+              const SectionTitle('الأعلى تقييماً'),
+              if (rated.isEmpty)
+                const EmptyState(message: 'لا توجد تقييمات بعد', icon: Icons.star_border),
+              for (final e in rated)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(e.key.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                      StarsView(value: e.value, size: 13),
+                      const SizedBox(width: 6),
+                      Text(e.value.toStringAsFixed(1)),
+                    ],
+                  ),
+                ),
               const SectionTitle('الاستعارات الشهرية'),
               SizedBox(
                 height: 130,

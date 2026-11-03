@@ -3,6 +3,7 @@ import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/utils/arabic_text.dart';
 import 'package:librarry_app/views/staff/staff_forms.dart';
+import 'package:librarry_app/widgets/book_cover.dart';
 import 'package:librarry_app/widgets/common.dart';
 import 'package:librarry_app/widgets/library_app_bar.dart';
 
@@ -59,10 +60,11 @@ class ManageBooksScreen extends StatelessWidget {
           _card(
             context,
             ListTile(
+              leading: BookCover(book: b),
               title: Text(b.title),
               subtitle: Text(
                 '${b.code} · ${store.categoryById(b.categoryId)?.name ?? ''} · '
-                '${b.availableCopies}/${b.totalCopies}',
+                '${b.isDigital ? 'رقمي' : '${b.availableCopies}/${b.totalCopies}'}',
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -226,6 +228,75 @@ class LoansManageScreen extends StatelessWidget {
                 ),
               ),
             ),
+        ];
+      },
+    );
+  }
+}
+
+// ───────────────────────── التذكيرات ─────────────────────────
+
+class RemindersScreen extends StatelessWidget {
+  const RemindersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _ManageScaffold(
+      title: 'التذكيرات',
+      builder: (context, store) {
+        final loans = store.remindableLoans;
+        return [
+          Text(
+            'المتأخرون ومن يحين موعد إرجاعهم اليوم أو غداً. يصلهم تنبيه تلقائي '
+            'عند الدخول، ويمكنك إرسال تذكير يدوي.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          if (loans.isEmpty)
+            const EmptyState(
+              message: 'لا يوجد متأخرون ولا مستحقون قريباً',
+              icon: Icons.check_circle_outline,
+            )
+          else ...[
+            FilledButton.icon(
+              icon: const Icon(Icons.notifications_active_outlined),
+              label: Text('إرسال تذكير للجميع (${loans.length})'),
+              onPressed: () => runAction(
+                context,
+                store.remindAllDue,
+                success: 'أُرسلت التذكيرات',
+                ms: 600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final loan in loans)
+              _card(
+                context,
+                ListTile(
+                  title: Text(store.bookById(loan.bookId)?.title ?? ''),
+                  subtitle: Text(
+                    '${store.userByName(loan.username)?.fullName ?? loan.username}'
+                    ' · ${arabicDate(loan.dueAt)}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      StatusChip.forLoan(loan),
+                      const SizedBox(width: 4),
+                      TextButton(
+                        onPressed: () => runAction(
+                          context,
+                          () => store.remindLoan(loan.id),
+                          success: 'أُرسل التذكير',
+                          ms: 400,
+                        ),
+                        child: const Text('تذكير'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ];
       },
     );
@@ -428,6 +499,12 @@ class UsersScreen extends StatelessWidget {
             label: const Text('إنشاء حساب'),
             onPressed: () => openScreen(context, const UserFormScreen()),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'ترقية الصلاحية وإنشاء الحسابات من صلاحيات مدير النظام فقط. '
+            'لا يمكنك تغيير صلاحية حسابك، ولا إزالة آخر مدير للنظام.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 12),
           for (final u in store.users)
             _card(
@@ -444,8 +521,19 @@ class UsersScreen extends StatelessWidget {
                           for (final r in UserRole.values)
                             DropdownMenuItem(value: r, child: Text(r.shortLabel)),
                         ],
-                        onChanged: (r) {
+                        onChanged: (r) async {
                           if (r == null || r == u.role) return;
+                          if (r == UserRole.admin) {
+                            final yes = await confirmDialog(
+                              context,
+                              title: 'تأكيد الترقية',
+                              message: 'هل تريد جعل ${u.fullName} «${r.label}»؟ '
+                                  'سيحصل على كل صلاحيات الإدارة، ومنها ترقية '
+                                  'المستخدمين وإنشاء الحسابات.',
+                              confirmLabel: 'ترقية',
+                            );
+                            if (!yes || !context.mounted) return;
+                          }
                           runAction(
                             context,
                             () => store.setRole(u.username, r),

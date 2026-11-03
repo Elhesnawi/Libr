@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_bloc: ^9.1.1
   dio: ^5.11.1
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
  
 
 dev_dependencies:

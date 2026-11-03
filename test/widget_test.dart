@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/models/library_type.dart';
@@ -37,9 +39,9 @@ void main() {
   group('الاستعارة', () {
     test('الحد الأقصى 3 كتب', () {
       store.login('user1', '1234'); // لديه كتاب مستعار واحد
-      store.borrow(3);
       store.borrow(4);
-      expect(() => store.borrow(5), throwsLibrary());
+      store.borrow(6);
+      expect(() => store.borrow(7), throwsLibrary());
     });
 
     test('لا تُستعار نسخة غير متاحة', () {
@@ -54,18 +56,18 @@ void main() {
 
     test('الاستعارة تنقص النسخ المتاحة', () {
       store.login('user1', '1234');
-      final before = store.bookById(3)!.availableCopies;
-      store.borrow(3);
-      expect(store.bookById(3)!.availableCopies, before - 1);
+      final before = store.bookById(4)!.availableCopies;
+      store.borrow(4);
+      expect(store.bookById(4)!.availableCopies, before - 1);
     });
 
     test('الموظف يستعير لمستعير آخر والمستخدم لا يستطيع', () {
       store.login('user1', '1234');
-      expect(() => store.borrow(3, forUsername: 'user2'), throwsLibrary());
+      expect(() => store.borrow(4, forUsername: 'user2'), throwsLibrary());
       store.logout();
       store.login('lib1', '1234');
-      store.borrow(3, forUsername: 'user2');
-      expect(store.activeLoansOf('user2').any((l) => l.bookId == 3), isTrue);
+      store.borrow(4, forUsername: 'user2');
+      expect(store.activeLoansOf('user2').any((l) => l.bookId == 4), isTrue);
     });
   });
 
@@ -150,9 +152,64 @@ void main() {
             title: 'ت', author: 'م', categoryId: 1, isDigital: false, copies: 0),
         throwsLibrary(),
       );
+      // الغلاف وتاريخ النشر إلزاميان، والكتاب الرقمي يحتاج ملف PDF.
+      expect(
+        () => store.addBook(
+            title: 'جديد', author: 'م', categoryId: 1, isDigital: false, copies: 1),
+        throwsLibrary(),
+      );
+      final cover = Uint8List.fromList([1, 2, 3]);
+      expect(
+        () => store.addBook(
+          title: 'جديد',
+          author: 'م',
+          categoryId: 1,
+          isDigital: true,
+          copies: 1,
+          publishDate: DateTime(2020),
+          coverBytes: cover,
+        ),
+        throwsLibrary(),
+      );
+      expect(
+        () => store.addBook(
+          title: 'جديد',
+          author: 'م',
+          categoryId: 1,
+          isDigital: false,
+          copies: 1,
+          publishDate: DateTime.now().add(const Duration(days: 5)),
+          coverBytes: cover,
+        ),
+        throwsLibrary(),
+      );
       final book = store.addBook(
-          title: 'جديد', author: 'م', categoryId: 1, isDigital: true, copies: 2);
-      expect(store.bookById(book.id)?.availableCopies, 2);
+        title: 'جديد',
+        author: 'م',
+        categoryId: 1,
+        isDigital: true,
+        copies: 2,
+        publishDate: DateTime(2020, 5, 10),
+        coverBytes: cover,
+        fileName: 'new.pdf',
+      );
+      // الكتاب الرقمي نسخة واحدة دائماً ومتاح دائماً.
+      expect(store.bookById(book.id)?.availableCopies, 1);
+      expect(store.bookById(book.id)?.isAvailable, isTrue);
+      expect(store.bookById(book.id)?.fileName, 'new.pdf');
+      // لا يتكرر العنوان.
+      expect(
+        () => store.addBook(
+          title: 'جديد',
+          author: 'م',
+          categoryId: 1,
+          isDigital: false,
+          copies: 1,
+          publishDate: DateTime(2020),
+          coverBytes: cover,
+        ),
+        throwsLibrary(),
+      );
     });
 
     test('تعديل النسخ لا ينزل عن المستعار حالياً', () {
@@ -190,6 +247,32 @@ void main() {
       expect(store.userByName('user1')!.role, UserRole.librarian);
     });
 
+    test('ترقية مستخدم إلى مدير تخطره، والموظف لا يغيّر الصلاحيات', () {
+      store.login('lib1', '1234');
+      expect(() => store.setRole('user1', UserRole.admin), throwsLibrary());
+      store.logout();
+
+      store.login('admin', '1234');
+      store.setRole('user1', UserRole.admin);
+      expect(store.userByName('user1')!.role, UserRole.admin);
+      store.logout();
+
+      expect(
+        store.notificationsOf('user1').any((n) => n.title.contains('مدير النظام')),
+        isTrue,
+      );
+      // المدير الجديد يملك صلاحيات المدير ويستطيع إنشاء حساب.
+      store.login('user1', '1234');
+      store.addUser(username: 'made_by_new_admin', fullName: 'س');
+      expect(store.userByName('made_by_new_admin'), isNotNull);
+    });
+
+    test('إنشاء حساب بصلاحية محددة', () {
+      store.login('admin', '1234');
+      store.addUser(username: 'staff9', fullName: 'موظف', role: UserRole.librarian);
+      expect(store.userByName('staff9')!.role, UserRole.librarian);
+    });
+
     test('إنشاء حساب: تكرار ومدخلات', () {
       store.login('admin', '1234');
       expect(() => store.addUser(username: 'user1', fullName: 'س'), throwsLibrary());
@@ -215,6 +298,83 @@ void main() {
       expect(() => store.login('user1', '1234'), throwsLibrary());
       store.login('user1', '654321');
       expect(store.currentUser?.username, 'user1');
+    });
+  });
+
+  group('الكتب الرقمية والتقييم والتذكيرات', () {
+    test('الكتاب الرقمي لا يُستعار ولا يُحجز', () {
+      store.login('user1', '1234');
+      expect(() => store.borrow(3), throwsLibrary());
+      expect(() => store.reserve(3), throwsLibrary());
+      expect(store.bookById(3)!.isAvailable, isTrue);
+    });
+
+    test('القراءة تحفظ آخر صفحة وتُرفض للورقي', () {
+      store.login('user1', '1234');
+      expect(store.readingPage(3), 0);
+      store.setReadingPage(3, 5);
+      expect(store.readingPage(3), 5);
+      store.setReadingPage(3, 99);
+      expect(store.readingPage(3), store.bookById(3)!.pages);
+      expect(() => store.setReadingPage(1, 2), throwsLibrary());
+      expect(() => store.downloadBook(1), throwsLibrary());
+    });
+
+    test('التقييم بعد الاستعارة فقط، وواحد لكل مستخدم', () {
+      store.login('user1', '1234');
+      expect(() => store.rateBook(7, 4), throwsLibrary()); // لم يستعره
+      store.rateBook(1, 2, comment: ' عادي ');
+      expect(store.myRating(1)!.stars, 2);
+      expect(store.myRating(1)!.comment, 'عادي');
+      expect(store.ratingsOf(1).where((r) => r.username == 'user1').length, 1);
+      expect(() => store.rateBook(1, 0), throwsLibrary());
+      expect(() => store.rateBook(1, 6), throwsLibrary());
+      expect(store.averageRating(1), closeTo((5 + 2) / 2, 0.001));
+    });
+
+    test('الكتاب الرقمي يُقيَّم بعد قراءته أو تحميله', () {
+      store.login('user1', '1234');
+      expect(store.canRate(8), isFalse);
+      store.downloadBook(8);
+      expect(store.canRate(8), isTrue);
+      store.rateBook(8, 5);
+      expect(store.ratingCount(8), 1);
+    });
+
+    test('الموظف لا يقيّم ويحذف أي تقييم، والمستخدم لا يحذف', () {
+      store.login('lib1', '1234');
+      expect(() => store.rateBook(1, 5), throwsLibrary());
+      final id = store.ratingsOf(1).first.id;
+      store.logout();
+      store.login('user1', '1234');
+      expect(() => store.deleteRating(id), throwsLibrary());
+      store.logout();
+      store.login('lib1', '1234');
+      store.deleteRating(id);
+      expect(store.ratingsOf(1).any((r) => r.id == id), isFalse);
+      expect(store.topRated().first.value, greaterThan(0));
+    });
+
+    test('تذكير الإرجاع يدوي للموظفين فقط ويصل للمستعير', () {
+      store.login('user2', '1234');
+      expect(() => store.remindAllDue(), throwsLibrary());
+      store.logout();
+      store.login('lib1', '1234');
+      expect(store.remindableLoans.any((l) => l.username == 'user2'), isTrue);
+      final before = store.notificationsOf('user2').length;
+      expect(store.remindAllDue(), greaterThan(0));
+      expect(store.notificationsOf('user2').length, before + 1);
+      expect(
+        store.notificationsOf('user2').any((n) => n.title.contains('تذكير')),
+        isTrue,
+      );
+    });
+
+    test('مرور يوم يُنشئ تنبيهاً جديداً للمتأخر', () {
+      store.login('user2', '1234');
+      final before = store.notificationsOf('user2').length;
+      store.simulateDayPassed();
+      expect(store.notificationsOf('user2').length, before + 1);
     });
   });
 

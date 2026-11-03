@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart' show ChangeNotifier, visibleForTesting;
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/models/library_type.dart';
@@ -36,6 +38,9 @@ class LibraryStore extends ChangeNotifier {
   final Map<int, int> _borrowCounts = {};
   final Map<int, List<String>> _reservations = {};
   final Set<String> _notified = {};
+  final List<Rating> _ratings = [];
+  final Map<String, int> _progress = {};
+  final Set<String> _downloads = {};
 
   AppUser? _current;
   DateTime? _previousLogin;
@@ -220,6 +225,9 @@ class LibraryStore extends ChangeNotifier {
       throw const LibraryException('المستعير غير موجود');
     }
     final book = _mustBook(bookId);
+    if (book.isDigital) {
+      throw const LibraryException('الكتب الرقمية تُقرأ وتُحمَّل مباشرة بلا استعارة');
+    }
     final active = activeLoansOf(target);
     if (active.length >= maxLoans) {
       throw LibraryException(self
@@ -328,17 +336,35 @@ class LibraryStore extends ChangeNotifier {
     required int categoryId,
     required bool isDigital,
     required int copies,
+    DateTime? publishDate,
+    Uint8List? coverBytes,
+    String? fileName,
   }) {
     _requireStaff();
     _validateBook(title, author, categoryId, copies);
+    _validatePublishDate(publishDate);
+    if (coverBytes == null || coverBytes.isEmpty) {
+      throw const LibraryException('أضف صورة غلاف الكتاب');
+    }
+    if (isDigital && (fileName == null || fileName.trim().isEmpty)) {
+      throw const LibraryException('ارفع ملف الكتاب الرقمي (PDF)');
+    }
+    final norm = normalizeArabic(title);
+    if (_books.any((b) => normalizeArabic(b.title) == norm)) {
+      throw const LibraryException('يوجد كتاب بنفس العنوان');
+    }
+    final total = isDigital ? 1 : copies;
     final book = Book(
       id: _nextId++,
       title: title.trim(),
       author: author.trim(),
       categoryId: categoryId,
       isDigital: isDigital,
-      totalCopies: copies,
-      availableCopies: copies,
+      totalCopies: total,
+      availableCopies: total,
+      publishDate: publishDate,
+      coverBytes: coverBytes,
+      fileName: isDigital ? fileName!.trim() : null,
     );
     _books.add(book);
     _log('إضافة كتاب: ${book.title}');
@@ -353,12 +379,24 @@ class LibraryStore extends ChangeNotifier {
     required int categoryId,
     required bool isDigital,
     required int copies,
+    DateTime? publishDate,
+    Uint8List? coverBytes,
+    String? fileName,
   }) {
     _requireStaff();
     final book = _mustBook(id);
     _validateBook(title, author, categoryId, copies);
+    _validatePublishDate(publishDate ?? book.publishDate);
     final borrowed = book.totalCopies - book.availableCopies;
-    if (copies < borrowed) {
+    if (isDigital && !book.isDigital && borrowed > 0) {
+      throw const LibraryException('لا يمكن تحويل كتاب مستعار حالياً إلى رقمي');
+    }
+    final newFile = (fileName ?? book.fileName)?.trim();
+    if (isDigital && (newFile == null || newFile.isEmpty)) {
+      throw const LibraryException('ارفع ملف الكتاب الرقمي (PDF)');
+    }
+    final total = isDigital ? 1 : copies;
+    if (total < borrowed) {
       throw LibraryException(
         'عدد النسخ أقل من النسخ المستعارة حالياً ($borrowed)',
       );
@@ -367,8 +405,11 @@ class LibraryStore extends ChangeNotifier {
     book.author = author.trim();
     book.categoryId = categoryId;
     book.isDigital = isDigital;
-    book.totalCopies = copies;
-    book.availableCopies = copies - borrowed;
+    book.totalCopies = total;
+    book.availableCopies = total - borrowed;
+    if (publishDate != null) book.publishDate = publishDate;
+    if (coverBytes != null && coverBytes.isNotEmpty) book.coverBytes = coverBytes;
+    book.fileName = isDigital ? newFile : null;
     _log('تعديل كتاب: ${book.title}');
     _notifyFirstReservation(book);
     notifyListeners();
@@ -387,8 +428,18 @@ class LibraryStore extends ChangeNotifier {
     }
     _reservations.remove(id);
     _borrowCounts.remove(id);
+    _ratings.removeWhere((r) => r.bookId == id);
     _log('حذف كتاب: ${book.title}');
     notifyListeners();
+  }
+
+  void _validatePublishDate(DateTime? date) {
+    if (date == null) {
+      throw const LibraryException('أدخل تاريخ النشر');
+    }
+    if (date.isAfter(DateTime.now())) {
+      throw const LibraryException('تاريخ النشر لا يكون في المستقبل');
+    }
   }
 
   void _validateBook(String title, String author, int categoryId, int copies) {
@@ -498,7 +549,11 @@ class LibraryStore extends ChangeNotifier {
 
   // ───────────────────────── الحسابات (للمدير) ─────────────────────────
 
-  void addUser({required String username, required String fullName}) {
+  void addUser({
+    required String username,
+    required String fullName,
+    UserRole role = UserRole.user,
+  }) {
     _requireAdmin();
     final name = username.trim().toLowerCase();
     if (name.isEmpty || fullName.trim().isEmpty) {
@@ -515,10 +570,10 @@ class LibraryStore extends ChangeNotifier {
     _users.add(AppUser(
       username: name,
       fullName: fullName.trim(),
-      role: UserRole.user,
+      role: role,
       password: tempPassword,
     ));
-    _log('إنشاء حساب: $name');
+    _log('إنشاء حساب: $name (${role.shortLabel})');
     notifyListeners();
   }
 
@@ -529,7 +584,14 @@ class LibraryStore extends ChangeNotifier {
     }
     final user = userByName(username);
     if (user == null) throw const LibraryException('المستخدم غير موجود');
+    if (user.role == role) return;
+    if (user.role == UserRole.admin &&
+        role != UserRole.admin &&
+        _users.where((u) => u.role == UserRole.admin).length < 2) {
+      throw const LibraryException('لا يمكن إزالة آخر مدير للنظام');
+    }
     user.role = role;
+    _addNotification(username, 'تم تغيير صلاحيتك إلى ${role.label}', 'من مدير النظام');
     _log('تغيير دور $username إلى ${role.shortLabel}');
     notifyListeners();
   }
@@ -588,13 +650,178 @@ class LibraryStore extends ChangeNotifier {
       final book = bookById(loan.bookId);
       if (book == null) continue;
       if (loan.isOverdue) {
-        _notifyOnce('late:${loan.id}', user.username,
+        _notifyOnce('late:${loan.id}:${loan.daysLeft}', user.username,
             'تأخر إرجاع "${book.title}"', dueText(loan.daysLeft));
       } else if (loan.daysLeft <= 3) {
-        _notifyOnce('due:${loan.id}', user.username,
+        _notifyOnce('due:${loan.id}:${loan.daysLeft}', user.username,
             'اقترب موعد إرجاع "${book.title}"', dueText(loan.daysLeft));
       }
     }
+  }
+
+  // ───────────────────────── التذكيرات (للموظفين) ─────────────────────────
+
+  /// المتأخرون ومن يحين موعد إرجاعهم اليوم أو غداً.
+  List<Loan> get remindableLoans =>
+      allActiveLoans.where((l) => l.daysLeft <= 1).toList();
+
+  void _sendReminder(Loan loan) {
+    final book = _mustBook(loan.bookId);
+    _addNotification(
+      loan.username,
+      loan.isOverdue
+          ? 'تذكير: تأخر إرجاع "${book.title}"'
+          : 'تذكير: حان موعد إرجاع "${book.title}"',
+      'رسالة من أمين المكتبة · ${dueText(loan.daysLeft)}',
+    );
+  }
+
+  void remindLoan(int loanId) {
+    _requireStaff();
+    final loan = _mustLoan(loanId);
+    if (!loan.isActive) {
+      throw const LibraryException('تم إرجاع هذا الكتاب مسبقاً');
+    }
+    _sendReminder(loan);
+    _log('تذكير إرجاع: ${_mustBook(loan.bookId).title} (${loan.username})');
+    notifyListeners();
+  }
+
+  /// يرسل تذكيراً لكل من يستحق، ويعيد عددهم.
+  int remindAllDue() {
+    _requireStaff();
+    final list = remindableLoans;
+    for (final l in list) {
+      _sendReminder(l);
+    }
+    if (list.isNotEmpty) {
+      _log('تذكير إرجاع لـ ${list.length} مستعير');
+      notifyListeners();
+    }
+    return list.length;
+  }
+
+  /// أداة للتجربة فقط: تقدّم الوقت يوماً لرؤية التنبيهات الجديدة.
+  void simulateDayPassed() {
+    _requireLogin();
+    for (final l in _loans) {
+      if (l.isActive) l.dueAt = l.dueAt.subtract(const Duration(days: 1));
+    }
+    for (final u in _users) {
+      _refreshDueNotifications(u);
+    }
+    notifyListeners();
+  }
+
+  // ───────────────────────── التقييمات ─────────────────────────
+
+  List<Rating> ratingsOf(int bookId) =>
+      _ratings.where((r) => r.bookId == bookId).toList().reversed.toList();
+
+  int ratingCount(int bookId) => _ratings.where((r) => r.bookId == bookId).length;
+
+  double averageRating(int bookId) {
+    final list = _ratings.where((r) => r.bookId == bookId).toList();
+    if (list.isEmpty) return 0;
+    return list.fold<int>(0, (sum, r) => sum + r.stars) / list.length;
+  }
+
+  Rating? myRating(int bookId) {
+    final me = _current;
+    if (me == null) return null;
+    for (final r in _ratings) {
+      if (r.bookId == bookId && r.username == me.username) return r;
+    }
+    return null;
+  }
+
+  String _key(int bookId) => '${_current?.username}:$bookId';
+
+  /// يقيّم المستخدم العادي كتاباً استعاره، أو كتاباً رقمياً قرأه أو حمّله.
+  bool canRate(int bookId) {
+    final me = _current;
+    if (me == null || me.role.isStaff) return false;
+    final borrowed = _loans.any((l) => l.username == me.username && l.bookId == bookId);
+    final key = _key(bookId);
+    return borrowed || _progress.containsKey(key) || _downloads.contains(key);
+  }
+
+  void rateBook(int bookId, int stars, {String comment = ''}) {
+    final me = _requireLogin();
+    final book = _mustBook(bookId);
+    if (!canRate(bookId)) {
+      throw LibraryException(book.isDigital
+          ? 'يمكنك تقييم الكتاب بعد قراءته أو تحميله'
+          : 'يمكنك تقييم الكتاب بعد استعارته');
+    }
+    if (stars < 1 || stars > 5) {
+      throw const LibraryException('اختر عدد النجوم');
+    }
+    final existing = myRating(bookId);
+    if (existing != null) {
+      existing.stars = stars;
+      existing.comment = comment.trim();
+    } else {
+      _ratings.add(Rating(
+        id: _nextId++,
+        bookId: bookId,
+        username: me.username,
+        stars: stars,
+        comment: comment.trim(),
+      ));
+    }
+    _log('تقييم كتاب: ${book.title} ($stars/5)');
+    notifyListeners();
+  }
+
+  void deleteRating(int id) {
+    _requireStaff();
+    final before = _ratings.length;
+    _ratings.removeWhere((r) => r.id == id);
+    if (_ratings.length == before) {
+      throw const LibraryException('التقييم غير موجود');
+    }
+    _log('حذف تقييم');
+    notifyListeners();
+  }
+
+  /// الكتب الأعلى تقييماً (التي لها تقييم واحد على الأقل).
+  List<MapEntry<Book, double>> topRated({int limit = 4}) {
+    final list = <MapEntry<Book, double>>[
+      for (final b in _books)
+        if (ratingCount(b.id) > 0) MapEntry(b, averageRating(b.id)),
+    ];
+    list.sort((a, b) => b.value.compareTo(a.value));
+    return list.take(limit).toList();
+  }
+
+  // ───────────────────────── القراءة والتحميل (الكتب الرقمية) ─────────────────────────
+
+  Book _mustDigital(int bookId) {
+    final book = _mustBook(bookId);
+    if (!book.isDigital) {
+      throw const LibraryException('هذا الكتاب ورقي');
+    }
+    return book;
+  }
+
+  /// آخر صفحة وصل إليها المستخدم الحالي (0 = لم يبدأ القراءة).
+  int readingPage(int bookId) => _progress[_key(bookId)] ?? 0;
+
+  void setReadingPage(int bookId, int page) {
+    _requireLogin();
+    final book = _mustDigital(bookId);
+    _progress[_key(bookId)] = page.clamp(1, book.pages).toInt();
+    notifyListeners();
+  }
+
+  /// تحميل الكتاب الرقمي. الملف الفعلي يأتي مع الربط بالتخزين السحابي.
+  void downloadBook(int bookId) {
+    _requireLogin();
+    final book = _mustDigital(bookId);
+    _downloads.add(_key(bookId));
+    _log('تحميل كتاب: ${book.title}');
+    notifyListeners();
   }
 
   // ───────────────────────── الإحصائيات والتقارير ─────────────────────────
@@ -750,6 +977,8 @@ class LibraryStore extends ChangeNotifier {
           isDigital: d,
           totalCopies: total,
           availableCopies: avail,
+          publishDate: DateTime(2012 + id % 10, 1 + id % 9, 15),
+          fileName: d ? '$t.pdf' : null,
         );
 
     _books.addAll([
@@ -768,6 +997,23 @@ class LibraryStore extends ChangeNotifier {
     _borrowCounts.addAll({1: 12, 3: 9, 4: 7, 7: 6, 9: 5, 6: 4});
 
     _favorites['user1'] = {1, 3, 4, 5, 9};
+
+    for (final r in const [
+      (1, 'user2', 5, 'مرجع ممتاز ومبسط'),
+      (1, 'user1', 4, ''),
+      (3, 'user2', 5, 'مفيد جداً لموظفي الرقابة'),
+      (4, 'user1', 4, 'عرض واضح للحوكمة'),
+      (7, 'user2', 3, ''),
+      (9, 'user2', 5, 'مناسب للمبتدئين'),
+    ]) {
+      _ratings.add(Rating(
+        id: _nextId++,
+        bookId: r.$1,
+        username: r.$2,
+        stars: r.$3,
+        comment: r.$4,
+      ));
+    }
 
     _loans.addAll([
       Loan(

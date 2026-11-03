@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/services/library_store.dart';
@@ -58,6 +59,20 @@ class ProfileView extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_left),
                 onTap: () => openScreen(context, const ChangePasswordScreen()),
               ),
+              if (kDebugMode) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.fast_forward_outlined),
+                  title: const Text('محاكاة مرور يوم (للتجربة)'),
+                  subtitle: const Text('يظهر في وضع التطوير فقط'),
+                  onTap: () => runAction(
+                    context,
+                    store.simulateDayPassed,
+                    success: 'مضى يوم. راجع الإشعارات لرؤية التذكيرات الجديدة',
+                    ms: 500,
+                  ),
+                ),
+              ],
               const Divider(height: 1),
               ListTile(
                 leading: Icon(Icons.logout, color: scheme.error),

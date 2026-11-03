@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/services/library_store.dart';
-import 'package:librarry_app/views/user/book_details_screen.dart';
+import 'package:librarry_app/widgets/book_cover.dart';
+import 'package:librarry_app/widgets/book_popup.dart';
 import 'package:librarry_app/widgets/common.dart';
+import 'package:librarry_app/widgets/rating_section.dart';
 
 /// سطر كتاب: غلاف مبسّط + العنوان والمؤلف والقسم + حالة التوفر.
 class BookTile extends StatelessWidget {
@@ -13,7 +15,7 @@ class BookTile extends StatelessWidget {
   /// بديل لشارة التوفر (مثل شارة موعد الإرجاع).
   final Widget? trailing;
 
-  /// افتراضياً يفتح تفاصيل الكتاب.
+  /// افتراضياً: نافذة منبثقة للمستخدم، وصفحة التفاصيل للموظف.
   final VoidCallback? onTap;
 
   @override
@@ -25,29 +27,36 @@ class BookTile extends StatelessWidget {
       elevation: 0,
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
       child: ListTile(
-        onTap: onTap ?? () => openScreen(context, BookDetailsScreen(bookId: book.id)),
-        leading: Container(
-          width: 40,
-          height: 52,
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            book.isDigital ? Icons.picture_as_pdf_outlined : Icons.menu_book_outlined,
-            color: scheme.onPrimaryContainer,
-          ),
-        ),
+        onTap: onTap ?? () => openBook(context, book.id),
+        leading: BookCover(book: book),
         title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${book.author} · ${category?.name ?? ''}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${book.author} · ${category?.name ?? ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (LibraryStore.instance.ratingCount(book.id) > 0)
+              Row(
+                children: [
+                  StarsView(value: LibraryStore.instance.averageRating(book.id), size: 13),
+                  const SizedBox(width: 4),
+                  Text(
+                    LibraryStore.instance.averageRating(book.id).toStringAsFixed(1),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+          ],
         ),
         trailing: trailing ??
             StatusChip(
-              label: book.isAvailable ? 'متاح' : 'غير متاح',
-              tone: book.isAvailable ? Tone.success : Tone.danger,
+              label: book.isDigital ? 'رقمي' : (book.isAvailable ? 'متاح' : 'غير متاح'),
+              tone: book.isDigital
+                  ? Tone.warning
+                  : (book.isAvailable ? Tone.success : Tone.danger),
             ),
       ),
     );
