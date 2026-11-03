@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:librarry_app/models/library_models.dart';
-import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/utils/arabic_text.dart';
+import 'package:librarry_app/views/auth/auth_cubit.dart';
 import 'package:librarry_app/widgets/loading_splash.dart';
 
 /// يفتح شاشة جديدة بعد تحميل قصير بشعار الهيئة.
@@ -17,8 +18,9 @@ Future<void> openScreen(BuildContext context, Widget screen) async {
 /// تسجيل الخروج: يعود للشاشة الأولى ثم يمسح الجلسة (مع شاشة التحميل).
 Future<void> logoutUser(BuildContext context) async {
   final nav = Navigator.of(context);
+  final auth = context.read<AuthCubit>();
   nav.popUntil((route) => route.isFirst);
-  await withSplash<void>(nav.context, LibraryStore.instance.logout, ms: 600);
+  await withSplash<void>(nav.context, auth.logout, ms: 600);
 }
 
 void showMessage(BuildContext context, String text) {

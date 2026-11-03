@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/widgets/book_cover.dart';
-import 'package:librarry_app/widgets/book_popup.dart';
+import 'package:librarry_app/views/user/book_popup/book_popup_screen.dart';
 import 'package:librarry_app/widgets/common.dart';
-import 'package:librarry_app/widgets/rating_section.dart';
+import 'package:librarry_app/widgets/stars_view.dart';
 
 /// سطر كتاب: غلاف مبسّط + العنوان والمؤلف والقسم + حالة التوفر.
 class BookTile extends StatelessWidget {

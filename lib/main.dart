@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:librarry_app/services/library_store.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:librarry_app/views/auth/auth_cubit.dart';
+import 'package:librarry_app/views/auth/auth_state.dart';
 import 'package:librarry_app/views/splash/splash_screen.dart';
 
 void main() {
@@ -13,28 +15,30 @@ class LibraryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = LibraryStore.instance;
-    return ListenableBuilder(
-      listenable: store,
-      builder: (context, _) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'المكتبة الذكية',
-        themeMode: store.darkMode ? ThemeMode.dark : ThemeMode.light,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorSchemeSeed: _seed,
+    return BlocProvider(
+      create: (_) => AuthCubit(),
+      child: BlocBuilder<AuthCubit, AuthState>(
+        buildWhen: (previous, current) => previous.darkMode != current.darkMode,
+        builder: (context, auth) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'المكتبة الذكية',
+          themeMode: auth.darkMode ? ThemeMode.dark : ThemeMode.light,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: _seed,
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: _seed,
+            brightness: Brightness.dark,
+          ),
+          // يجعل الاتجاه من اليمين لليسار في كل الشاشات.
+          builder: (context, child) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          ),
+          home: const SplashScreen(),
         ),
-        darkTheme: ThemeData(
-          useMaterial3: true,
-          colorSchemeSeed: _seed,
-          brightness: Brightness.dark,
-        ),
-        // يجعل الاتجاه من اليمين لليسار في كل الشاشات.
-        builder: (context, child) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: child!,
-        ),
-        home: const SplashScreen(),
       ),
     );
   }
