@@ -1,12 +1,9 @@
-abstract class LoginState {}
+class LoginState {
+  const LoginState({this.obscure = true, this.error});
 
-class InitLoginState extends LoginState {}
+  /// إخفاء كلمة المرور.
+  final bool obscure;
 
-class SuccessLoginState extends LoginState {}
-
-class LoadingLoginState extends LoginState {}
-
-class ErrorLoginState extends LoginState{
-  final String error;
-  ErrorLoginState(this.error);
+  /// رسالة الخطأ الظاهرة تحت الحقول.
+  final String? error;
 }
