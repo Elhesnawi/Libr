@@ -11,4 +11,9 @@ class UsersCubit extends StoreCubit<UsersState> {
 
   /// يرمي [LibraryException] عند تغيير دور حسابك أو إزالة آخر مدير.
   void setRole(String username, UserRole role) => store.setRole(username, role);
+
+  /// تعطيل حساب بسبب إلزامي. يرمي [LibraryException] عند المخالفة.
+  void disable(String username, String reason) => store.disableUser(username, reason);
+
+  void enable(String username) => store.enableUser(username);
 }

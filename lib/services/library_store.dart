@@ -95,6 +95,11 @@ class LibraryStore extends ChangeNotifier {
     if (user == null || user.password != password) {
       throw const LibraryException('اسم المستخدم أو كلمة المرور غير صحيحة');
     }
+    if (user.disabled) {
+      throw LibraryException(
+        'هذا الحساب معطّل. السبب: ${user.disabledReason}. راجع مدير النظام',
+      );
+    }
     _previousLogin = user.lastLogin;
     user.lastLogin = DateTime.now();
     _current = user;
@@ -587,12 +592,51 @@ class LibraryStore extends ChangeNotifier {
     if (user.role == role) return;
     if (user.role == UserRole.admin &&
         role != UserRole.admin &&
-        _users.where((u) => u.role == UserRole.admin).length < 2) {
+        _activeAdmins < 2) {
       throw const LibraryException('لا يمكن إزالة آخر مدير للنظام');
     }
     user.role = role;
     _addNotification(username, 'تم تغيير صلاحيتك إلى ${role.label}', 'من مدير النظام');
     _log('تغيير دور $username إلى ${role.shortLabel}');
+    notifyListeners();
+  }
+
+  int get _activeAdmins =>
+      _users.where((u) => u.role == UserRole.admin && !u.disabled).length;
+
+  /// تعطيل حساب (مع سبب إلزامي) بدل حذفه. للمدير فقط.
+  /// لا يُحذف شيء من بيانات الحساب، ويمكن إعادة تفعيله بـ [enableUser].
+  void disableUser(String username, String reason) {
+    final me = _requireAdmin();
+    final why = reason.trim();
+    if (why.isEmpty) throw const LibraryException('اكتب سبب التعطيل');
+    if (username == me.username) {
+      throw const LibraryException('لا يمكنك تعطيل حسابك بنفسك');
+    }
+    final user = userByName(username);
+    if (user == null) throw const LibraryException('المستخدم غير موجود');
+    if (user.disabled) throw const LibraryException('الحساب معطّل مسبقاً');
+    if (user.role == UserRole.admin && _activeAdmins < 2) {
+      throw const LibraryException('لا يمكن تعطيل آخر مدير للنظام');
+    }
+    user.disabled = true;
+    user.disabledReason = why;
+    user.disabledAt = DateTime.now();
+    _log('تعطيل حساب $username. السبب: $why');
+    notifyListeners();
+  }
+
+  /// إعادة تفعيل حساب معطّل. للمدير فقط.
+  void enableUser(String username) {
+    _requireAdmin();
+    final user = userByName(username);
+    if (user == null) throw const LibraryException('المستخدم غير موجود');
+    if (!user.disabled) return;
+    user.disabled = false;
+    user.disabledReason = '';
+    user.disabledAt = null;
+    _addNotification(username, 'تمت إعادة تفعيل حسابك', 'من مدير النظام');
+    _log('إعادة تفعيل حساب $username');
     notifyListeners();
   }
 

@@ -240,6 +240,56 @@ void main() {
   });
 
   group('الحسابات', () {
+    test('تعطيل حساب بسبب: يمنع الدخول وتبقى البيانات، ثم إعادة التفعيل', () {
+      store.login('admin', '1234');
+      store.disableUser('user1', 'كتاب لم يُعد');
+      final u = store.userByName('user1')!;
+      expect(u.disabled, isTrue);
+      expect(u.disabledReason, 'كتاب لم يُعد');
+      expect(u.disabledAt, isNotNull);
+      store.logout();
+
+      expect(
+        () => store.login('user1', '1234'),
+        throwsA(isA<LibraryException>()
+            .having((e) => e.message, 'message', contains('كتاب لم يُعد'))),
+      );
+
+      store.login('admin', '1234');
+      store.enableUser('user1');
+      expect(store.userByName('user1')!.disabled, isFalse);
+      expect(store.userByName('user1')!.disabledReason, isEmpty);
+      store.logout();
+      store.login('user1', '1234');
+      expect(store.currentUser?.username, 'user1');
+    });
+
+    test('التعطيل يتطلب سبباً، ولا يعطّل المدير نفسه ولا آخر مدير، وللمدير فقط', () {
+      store.login('admin', '1234');
+      expect(() => store.disableUser('user1', '  '), throwsLibrary());
+      expect(() => store.disableUser('admin', 'سبب'), throwsLibrary());
+      store.logout();
+
+      store.login('lib1', '1234');
+      expect(() => store.disableUser('user1', 'سبب'), throwsLibrary());
+      expect(() => store.enableUser('user1'), throwsLibrary());
+    });
+
+    test('المدير المعطّل لا يُحتسب ضمن المديرين الفعّالين عند حماية آخر مدير', () {
+      store.login('admin', '1234');
+      store.addUser(username: 'admin2', fullName: 'مدير ثانٍ', role: UserRole.admin);
+      store.disableUser('admin2', 'اختبار');
+      store.logout();
+      store.login('admin', '1234');
+      store.enableUser('admin2');
+      store.logout();
+
+      store.login('admin2', '1234');
+      store.disableUser('admin', 'اختبار');
+      expect(() => store.setRole('admin', UserRole.user), throwsLibrary());
+      store.logout();
+    });
+
     test('المدير لا يغيّر دوره بنفسه ويغيّر دور غيره', () {
       store.login('admin', '1234');
       expect(() => store.setRole('admin', UserRole.user), throwsLibrary());

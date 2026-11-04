@@ -19,7 +19,8 @@ class ScanState {
   final int? bookId;
 
   factory ScanState.initial(LibraryStore s) {
-    final members = s.users.where((u) => u.role == UserRole.user).toList();
+    final members =
+        s.users.where((u) => u.role == UserRole.user && !u.disabled).toList();
     return ScanState(
       members: members,
       books: s.books,
