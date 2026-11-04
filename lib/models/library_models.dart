@@ -46,6 +46,9 @@ class AppUser {
     required this.role,
     required this.password,
     this.lastLogin,
+    this.disabled = false,
+    this.disabledReason = '',
+    this.disabledAt,
   });
 
   final String username;
@@ -53,6 +56,11 @@ class AppUser {
   UserRole role;
   String password;
   DateTime? lastLogin;
+
+  /// الحساب المعطّل لا يستطيع الدخول، وتبقى بياناته وسجل استعاراته محفوظة.
+  bool disabled;
+  String disabledReason;
+  DateTime? disabledAt;
 }
 
 /// أيقونات الأقسام (نخزّن المفتاح بدل الأيقونة ليسهل حفظه لاحقاً في قاعدة بيانات).
