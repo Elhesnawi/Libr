@@ -166,7 +166,7 @@ class _HomeView extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 2, bottom: 10),
                   child: Text(
-                    hasActivity
+                    state.hasActivity
                         ? 'بناءً على أقسامك المفضلة وآخر استعاراتك'
                         : 'ابدأ من الكتب التي يقرؤها زملاؤك',
                     style: text.bodySmall,
