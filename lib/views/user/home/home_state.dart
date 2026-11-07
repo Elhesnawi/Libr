@@ -1,3 +1,4 @@
+import 'package:librarry_app/models/category_shelf.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/models/library_type.dart';
 import 'package:librarry_app/services/library_store.dart';
@@ -13,10 +14,8 @@ class HomeState {
     required this.results,
     required this.hasActivity,
     required this.suggestions,
-    required this.type,
-    required this.categories,
-    required this.counts,
-    required this.favoritesCount,
+    required this.digital,
+    required this.paper,
   });
 
   final AppUser? user;
@@ -28,17 +27,16 @@ class HomeState {
   final List<Book> results;
   final bool hasActivity;
   final List<Book> suggestions;
-  final LibraryType type;
-  final List<BookCategory> categories;
-  final Map<int, int> counts;
-  final int favoritesCount;
+  final LibrarySectionData digital;
+  final LibrarySectionData paper;
 
   Loan? get nextLoan => loans.isEmpty ? null : loans.first;
 
   factory HomeState.from(
     LibraryStore s, {
-    required LibraryType type,
     String query = '',
+    int? digitalCategoryId,
+    int? paperCategoryId,
   }) {
     final user = s.currentUser;
     final loans = user == null ? <Loan>[] : s.activeLoansOf(user.username);
@@ -53,10 +51,17 @@ class HomeState {
       results: query.trim().isEmpty ? <Book>[] : s.search(query: query).take(5).toList(),
       hasActivity: user != null && s.hasActivity(user.username),
       suggestions: user == null ? <Book>[] : s.suggestionsFor(user.username),
-      type: type,
-      categories: s.categories,
-      counts: {for (final c in s.categories) c.id: s.countIn(c.id, type)},
-      favoritesCount: user == null ? 0 : s.favoritesCount,
+      digital: _section(s, LibraryType.digital, digitalCategoryId),
+      paper: _section(s, LibraryType.paper, paperCategoryId),
     );
+  }
+
+  /// الأقسام التي فيها كتب من هذا النوع فقط، مع القسم المختار.
+  static LibrarySectionData _section(LibraryStore s, LibraryType type, int? selectedId) {
+    final shelves = <CategoryShelf>[
+      for (final c in s.categories)
+        if (s.booksIn(c.id, type).isNotEmpty) CategoryShelf(c, s.booksIn(c.id, type)),
+    ];
+    return LibrarySectionData(type: type, shelves: shelves, selectedId: selectedId);
   }
 }

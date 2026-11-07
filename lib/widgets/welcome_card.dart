@@ -1,40 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:librarry_app/core/brand.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/utils/arabic_text.dart';
-import 'package:librarry_app/widgets/common.dart';
 
-/// بطاقة الترحيب في الشاشة الرئيسية:
-/// تحية حسب الوقت، الاسم، الصورة، نوع الحساب (للموظفين)، التاريخ، آخر دخول،
-/// عدد الكتب المستعارة والمفضلة، وموعد الإرجاع القادم.
+/// بطاقة الترحيب الداكنة في الشاشة الرئيسية:
+/// الصورة والتحية والاسم، موعد الإرجاع القادم، وزر سجل الاستعارات.
+/// (الكتب المستعارة والمفضلة انتقلت إلى شاشة «حسابي».)
 class WelcomeCard extends StatelessWidget {
   const WelcomeCard({
     super.key,
     required this.fullName,
     required this.role,
-    required this.lastLogin,
-    required this.borrowedCount,
-    required this.maxLoans,
-    required this.favoritesCount,
     required this.nextLoan,
     required this.nextLoanTitle,
-    this.onBorrowedTap,
-    this.onFavoritesTap,
+    this.onNextLoanTap,
+    this.onHistoryTap,
   });
 
   final String fullName;
   final UserRole role;
-  final DateTime? lastLogin;
-  final int borrowedCount;
-  final int maxLoans;
-  final int favoritesCount;
   final Loan? nextLoan;
   final String? nextLoanTitle;
-  final VoidCallback? onBorrowedTap;
-  final VoidCallback? onFavoritesTap;
+  final VoidCallback? onNextLoanTap;
+  final VoidCallback? onHistoryTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final now = DateTime.now();
 
@@ -42,8 +33,15 @@ class WelcomeCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: scheme.primaryContainer,
+        gradient: Brand.darkCard,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Brand.navyDeep.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,8 +50,8 @@ class WelcomeCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: scheme.surface,
-                child: Icon(Icons.person_outline, size: 30, color: scheme.primary),
+                backgroundColor: Brand.glass(0.16),
+                child: const Icon(Icons.person_outline, size: 30, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -64,12 +62,12 @@ class WelcomeCard extends StatelessWidget {
                       '${greetingFor(now)}، $fullName 👋',
                       style: text.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: scheme.onPrimaryContainer,
+                        color: Colors.white,
                       ),
                     ),
                     Text(
                       'أهلاً بعودتك إلى المكتبة الذكية',
-                      style: text.bodyMedium?.copyWith(color: scheme.onPrimaryContainer),
+                      style: text.bodyMedium?.copyWith(color: Brand.glass(0.75)),
                     ),
                   ],
                 ),
@@ -82,89 +80,30 @@ class WelcomeCard extends StatelessWidget {
               avatar: Icon(
                 role == UserRole.admin ? Icons.shield_outlined : Icons.local_library_outlined,
                 size: 18,
+                color: Brand.onGold,
               ),
-              label: Text(role.label),
+              label: Text(role.label, style: const TextStyle(color: Brand.onGold)),
+              backgroundColor: Brand.goldLight,
+              side: BorderSide.none,
               visualDensity: VisualDensity.compact,
             ),
           ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _Tile(
-                  label: 'اليوم',
-                  value: arabicDate(now),
-                  icon: Icons.calendar_today_outlined,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _Tile(
-                  label: 'آخر دخول',
-                  value: lastLogin == null ? 'أول دخول' : arabicDayAndTime(lastLogin!),
-                  icon: Icons.login,
-                ),
-              ),
-            ],
+          const SizedBox(height: 14),
+          _NextLoanStrip(
+            loan: nextLoan,
+            title: nextLoanTitle,
+            onTap: onNextLoanTap,
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _Tile(
-                  label: 'الكتب المستعارة',
-                  value: '$borrowedCount من $maxLoans',
-                  icon: Icons.menu_book_outlined,
-                  big: true,
-                  onTap: onBorrowedTap,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _Tile(
-                  label: 'الكتب المفضلة',
-                  value: '$favoritesCount',
-                  icon: Icons.bookmark_border,
-                  big: true,
-                  onTap: onFavoritesTap,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Material(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onBorrowedTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(Icons.event_available_outlined, color: scheme.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('موعد الإرجاع القادم',
-                              style: text.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          Text(
-                            nextLoanTitle ?? 'لا يوجد كتاب مستحق',
-                            style: text.bodySmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    nextLoan == null
-                        ? const StatusChip(label: 'لا توجد مستحقات', tone: Tone.success)
-                        : StatusChip.forLoan(nextLoan!),
-                  ],
-                ),
-              ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: onHistoryTap,
+            icon: const Icon(Icons.history, size: 20),
+            label: const Text('سجل الاستعارات'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(46),
+              side: BorderSide(color: Brand.glass(0.3)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -173,54 +112,88 @@ class WelcomeCard extends StatelessWidget {
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.big = false,
-    this.onTap,
-  });
+/// شريط موعد الإرجاع القادم داخل البطاقة الداكنة (يتلوّن حسب الحالة).
+class _NextLoanStrip extends StatelessWidget {
+  const _NextLoanStrip({required this.loan, required this.title, this.onTap});
 
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool big;
+  final Loan? loan;
+  final String? title;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final loan = this.loan;
+    final Color chipBg;
+    final Color chipFg;
+    final String chipLabel;
+    if (loan == null) {
+      chipBg = Brand.okOnDark;
+      chipFg = const Color(0xFF06301B);
+      chipLabel = 'لا توجد مستحقات';
+    } else {
+      final d = loan.daysLeft;
+      chipLabel = dueText(d);
+      if (d < 0) {
+        chipBg = Brand.badOnDark;
+        chipFg = const Color(0xFF4A0A0A);
+      } else if (d <= 3) {
+        chipBg = Brand.warnOnDark;
+        chipFg = const Color(0xFF4A3300);
+      } else {
+        chipBg = Brand.okOnDark;
+        chipFg = const Color(0xFF06301B);
+      }
+    }
+
     return Material(
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(12),
+      color: Brand.glass(0.1),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Brand.glass(0.14)),
+          ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: scheme.primary),
-              const SizedBox(width: 8),
+              const Icon(Icons.event_available_outlined, color: Colors.white),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label, style: text.bodySmall, overflow: TextOverflow.ellipsis),
                     Text(
-                      value,
-                      style: (big ? text.titleMedium : text.bodyMedium)
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                      maxLines: 2,
+                      'موعد الإرجاع القادم',
+                      style: text.bodySmall?.copyWith(color: Brand.glass(0.75)),
+                    ),
+                    Text(
+                      title ?? 'لا يوجد كتاب مستحق',
+                      style: text.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              if (onTap != null)
-                Icon(Icons.chevron_left, size: 18, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: chipBg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  chipLabel,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: chipFg),
+                ),
+              ),
             ],
           ),
         ),

@@ -895,7 +895,7 @@ class LibraryStore extends ChangeNotifier {
 
   /// اقتراحات المكتبة الذكية: من الأقسام التي يهتم بها المستخدم،
   /// أو الأكثر استعارة إن كان مستخدماً جديداً.
-  List<Book> suggestionsFor(String username, {int limit = 2}) {
+  List<Book> suggestionsFor(String username, {int limit = 8}) {
     if (!hasActivity(username)) {
       return topBooks(limit: limit).map((e) => e.key).toList();
     }
