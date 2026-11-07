@@ -118,6 +118,51 @@ class LibraryStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// يحفظ بيانات حساب المستخدم الحالي: جهة العمل ورقم الهاتف (كلاهما اختياري).
+  /// عند اختيار نوع جهة يلزم حقله الأول، والثاني اختياري.
+  void updateProfile({
+    required OrgKind? kind,
+    List<String> values = const [],
+    String phone = '',
+  }) {
+    final me = _requireLogin();
+    var vals = <String>[];
+    if (kind != null) {
+      final labels = kind.fieldLabels;
+      vals = [
+        for (var i = 0; i < labels.length; i++)
+          i < values.length ? values[i].trim() : '',
+      ];
+      if (vals.first.isEmpty) {
+        throw LibraryException('أدخل ${labels.first}');
+      }
+    }
+    final digits = _normalizeDigits(phone).replaceAll(RegExp(r'[\s\-+()]'), '');
+    if (digits.isNotEmpty && !RegExp(r'^\d{9,15}$').hasMatch(digits)) {
+      throw const LibraryException('رقم الهاتف غير صحيح (من 9 إلى 15 رقماً)');
+    }
+    me.orgKind = kind;
+    me.orgValues = vals;
+    me.phone = digits;
+    _log('تحديث بيانات الحساب');
+    notifyListeners();
+  }
+
+  /// يحوّل الأرقام العربية والهندية إلى أرقام لاتينية.
+  static String _normalizeDigits(String s) {
+    final b = StringBuffer();
+    for (final r in s.runes) {
+      if (r >= 0x0660 && r <= 0x0669) {
+        b.writeCharCode(r - 0x0660 + 48);
+      } else if (r >= 0x06F0 && r <= 0x06F9) {
+        b.writeCharCode(r - 0x06F0 + 48);
+      } else {
+        b.writeCharCode(r);
+      }
+    }
+    return b.toString();
+  }
+
   // ───────────────────────── حراس الصلاحيات ─────────────────────────
 
   AppUser _requireLogin() {

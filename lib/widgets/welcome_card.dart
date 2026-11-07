@@ -5,12 +5,13 @@ import 'package:librarry_app/utils/arabic_text.dart';
 
 /// بطاقة الترحيب الداكنة في الشاشة الرئيسية:
 /// الصورة والتحية والاسم، موعد الإرجاع القادم، وزر سجل الاستعارات.
-/// (الكتب المستعارة والمفضلة انتقلت إلى شاشة «حسابي».)
+/// (الكتب المستعارة والمفضلة انتقلت إلى شاشة «بيانات حسابي».)
 class WelcomeCard extends StatelessWidget {
   const WelcomeCard({
     super.key,
     required this.fullName,
     required this.role,
+    this.orgLines = const [],
     required this.nextLoan,
     required this.nextLoanTitle,
     this.onNextLoanTap,
@@ -19,6 +20,9 @@ class WelcomeCard extends StatelessWidget {
 
   final String fullName;
   final UserRole role;
+
+  /// أسطر جهة العمل (الإدارة/الفرع/المكتب) حسب ما أدخله الشخص.
+  final List<String> orgLines;
   final Loan? nextLoan;
   final String? nextLoanTitle;
   final VoidCallback? onNextLoanTap;
@@ -69,6 +73,11 @@ class WelcomeCard extends StatelessWidget {
                       'أهلاً بعودتك إلى المكتبة الذكية',
                       style: text.bodyMedium?.copyWith(color: Brand.glass(0.75)),
                     ),
+                    for (final line in orgLines)
+                      Text(
+                        line,
+                        style: text.bodySmall?.copyWith(color: Brand.glass(0.85)),
+                      ),
                   ],
                 ),
               ),

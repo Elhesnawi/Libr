@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:librarry_app/core/brand.dart';
-import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/views/auth/auth_cubit.dart';
 import 'package:librarry_app/views/login/login_cubit.dart';
 import 'package:librarry_app/views/login/login_state.dart';
@@ -61,11 +59,6 @@ class _LoginViewState extends State<_LoginView> {
       () => cubit.submit(_username.text, _password.text),
       ms: 900,
     );
-  }
-
-  void _fillDemo(String username) {
-    _username.text = username;
-    _password.text = LibraryStore.tempPassword;
   }
 
   @override
@@ -157,25 +150,6 @@ class _LoginViewState extends State<_LoginView> {
                         ],
                       ),
                     ),
-                    // حسابات التجربة تظهر في وضع التطوير فقط، وتختفي في النسخة النهائية.
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 20),
-                      Text(
-                        'حسابات تجريبية (كلمة المرور ${LibraryStore.tempPassword})',
-                        textAlign: TextAlign.center,
-                        style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 8,
-                        children: [
-                          ActionChip(label: const Text('مستخدم عادي'), onPressed: () => _fillDemo('user1')),
-                          ActionChip(label: const Text('موظف'), onPressed: () => _fillDemo('lib1')),
-                          ActionChip(label: const Text('مدير'), onPressed: () => _fillDemo('admin')),
-                        ],
-                      ),
-                    ],
                   ],
                 ),
               ),

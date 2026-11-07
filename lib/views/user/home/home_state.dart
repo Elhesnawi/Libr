@@ -10,8 +10,6 @@ class HomeState {
     required this.loans,
     required this.nextTitle,
     required this.announcement,
-    required this.query,
-    required this.results,
     required this.hasActivity,
     required this.suggestions,
     required this.digital,
@@ -23,8 +21,6 @@ class HomeState {
   final List<Loan> loans;
   final String? nextTitle;
   final Announcement? announcement;
-  final String query;
-  final List<Book> results;
   final bool hasActivity;
   final List<Book> suggestions;
   final LibrarySectionData digital;
@@ -34,7 +30,6 @@ class HomeState {
 
   factory HomeState.from(
     LibraryStore s, {
-    String query = '',
     int? digitalCategoryId,
     int? paperCategoryId,
   }) {
@@ -47,8 +42,6 @@ class HomeState {
       loans: loans,
       nextTitle: loans.isEmpty ? null : s.bookById(loans.first.bookId)?.title,
       announcement: announcements.isEmpty ? null : announcements.first,
-      query: query,
-      results: query.trim().isEmpty ? <Book>[] : s.search(query: query).take(5).toList(),
       hasActivity: user != null && s.hasActivity(user.username),
       suggestions: user == null ? <Book>[] : s.suggestionsFor(user.username),
       digital: _section(s, LibraryType.digital, digitalCategoryId),

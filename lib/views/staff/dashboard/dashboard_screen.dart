@@ -17,6 +17,7 @@ import 'package:librarry_app/views/staff/scan/scan_screen.dart';
 import 'package:librarry_app/views/staff/stats/stats_screen.dart';
 import 'package:librarry_app/views/staff/users/users_screen.dart';
 import 'package:librarry_app/views/user/profile/profile_screen.dart';
+import 'package:librarry_app/widgets/account_menu.dart';
 import 'package:librarry_app/widgets/common.dart';
 import 'package:librarry_app/widgets/library_app_bar.dart';
 
@@ -55,11 +56,18 @@ class DashboardScreen extends StatelessWidget {
               _TileData('الإحصائيات', Icons.bar_chart, () => const StatsScreen()),
               _TileData('التقارير', Icons.assessment_outlined, () => const ReportsScreen()),
             ],
-            _TileData('حسابي', Icons.person_outline, () => const ProfileScreen()),
+            _TileData('بيانات حسابي', Icons.person_outline, () => const ProfileScreen()),
           ];
 
           return Scaffold(
-          appBar: LibraryAppBar(title: isAdmin ? 'لوحة المدير' : 'لوحة أمين المكتبة'),
+          appBar: LibraryAppBar(
+            title: isAdmin ? 'لوحة المدير' : 'لوحة أمين المكتبة',
+            actions: [
+              AccountMenu(
+                onOpenAccount: () => openScreen(context, const ProfileScreen()),
+              ),
+            ],
+          ),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [

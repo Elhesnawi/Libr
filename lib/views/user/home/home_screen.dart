@@ -9,11 +9,11 @@ import 'package:librarry_app/views/user/home/home_cubit.dart';
 import 'package:librarry_app/views/user/home/home_state.dart';
 import 'package:librarry_app/views/user/shell/shell_navigation.dart';
 import 'package:librarry_app/widgets/book_shelf.dart';
-import 'package:librarry_app/widgets/book_tile.dart';
 import 'package:librarry_app/widgets/common.dart';
 import 'package:librarry_app/widgets/welcome_card.dart';
 
-/// الشاشة الرئيسية: الترحيب، الوصول السريع، الأقسام، واقتراحات المكتبة الذكية.
+/// الشاشة الرئيسية: الترحيب، اقتراح كتاب، الأقسام، واقتراحات المكتبة الذكية.
+/// (البحث في تبويب «بحث» في الشريط السفلي فقط.)
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -45,6 +45,7 @@ class _HomeView extends StatelessWidget {
             WelcomeCard(
               fullName: user.fullName,
               role: user.role,
+              orgLines: user.orgLines,
               nextLoan: state.nextLoan,
               nextLoanTitle: state.nextTitle,
               onNextLoanTap: () => switchTab(context, 2),
@@ -79,21 +80,7 @@ class _HomeView extends StatelessWidget {
                 ),
               ),
             ],
-            const SectionTitle('الوصول السريع'),
-            TextField(
-              onChanged: cubit.setQuery,
-              decoration: const InputDecoration(
-                hintText: 'ابحث بعنوان الكتاب أو المؤلف',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            if (state.query.trim().isNotEmpty) ...[
-              const SizedBox(height: 8),
-              BookList(books: state.results),
-            ],
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _Shortcut(
               icon: Icons.lightbulb_outline,
               label: 'اقتراح كتاب',

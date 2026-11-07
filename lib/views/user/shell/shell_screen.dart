@@ -9,6 +9,7 @@ import 'package:librarry_app/views/user/search/search_screen.dart';
 import 'package:librarry_app/views/user/shell/shell_cubit.dart';
 import 'package:librarry_app/views/user/shell/shell_navigation.dart';
 import 'package:librarry_app/views/user/shell/shell_state.dart';
+import 'package:librarry_app/widgets/account_menu.dart';
 import 'package:librarry_app/widgets/common.dart';
 import 'package:librarry_app/widgets/library_app_bar.dart';
 
@@ -28,7 +29,7 @@ class ShellScreen extends StatelessWidget {
 class _ShellView extends StatelessWidget {
   const _ShellView();
 
-  static const _titles = ['الرئيسية', 'البحث', 'استعاراتي', 'المفضلة', 'حسابي'];
+  static const _titles = ['الرئيسية', 'البحث', 'استعاراتي', 'المفضلة', 'بيانات حسابي'];
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +69,7 @@ class _ShellView extends StatelessWidget {
                   child: const Icon(Icons.notifications_outlined),
                 ),
               ),
+              AccountMenu(onOpenAccount: () => switchTab(context, 4)),
             ],
           ),
           body: body,
@@ -79,7 +81,7 @@ class _ShellView extends StatelessWidget {
               NavigationDestination(icon: Icon(Icons.search), label: 'بحث'),
               NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'استعاراتي'),
               NavigationDestination(icon: Icon(Icons.bookmark_border), selectedIcon: Icon(Icons.bookmark), label: 'المفضلة'),
-              NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'حسابي'),
+              NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'بيانات حسابي'),
             ],
           ),
         );

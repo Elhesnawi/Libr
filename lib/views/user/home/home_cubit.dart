@@ -10,14 +10,11 @@ class HomeCubit extends StoreCubit<HomeState> {
   int? _digitalCategoryId;
   int? _paperCategoryId;
 
-  HomeState _build({String? query}) => HomeState.from(
+  HomeState _build() => HomeState.from(
         store,
-        query: query ?? state.query,
         digitalCategoryId: _digitalCategoryId,
         paperCategoryId: _paperCategoryId,
       );
-
-  void setQuery(String query) => emit(_build(query: query));
 
   /// يغيّر القسم المختار فتتغير الكتب المعروضة تحته.
   void selectCategory(LibraryType type, int categoryId) {

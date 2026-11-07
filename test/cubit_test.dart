@@ -108,6 +108,41 @@ void main() {
     });
   });
 
+  group('بيانات الحساب', () {
+    test('إدارة عامة: الحقل الأول مطلوب والثاني اختياري وتظهر في أسطر البطاقة', () {
+      store.login('user1', '1234');
+      expect(
+        () => store.updateProfile(kind: OrgKind.general, values: ['', 'إدارة التوثيق']),
+        throwsA(isA<LibraryException>()),
+      );
+      store.updateProfile(
+        kind: OrgKind.general,
+        values: ['الإدارة العامة للشؤون الفنية', 'إدارة التوثيق'],
+        phone: '٠٩١٢٣٤٥٦٧٨',
+      );
+      final me = store.currentUser!;
+      expect(me.phone, '0912345678');
+      expect(me.orgLines, [
+        'الإدارة العامة: الإدارة العامة للشؤون الفنية',
+        'الإدارة الفرعية: إدارة التوثيق',
+      ]);
+    });
+
+    test('فرع ومكتب، ورقم هاتف غير صالح يُرفض، والمسح يفرّغ الجهة', () {
+      store.login('user1', '1234');
+      store.updateProfile(kind: OrgKind.branch, values: ['فرع بنغازي', '']);
+      expect(store.currentUser!.orgLines, ['اسم الفرع: فرع بنغازي']);
+      store.updateProfile(kind: OrgKind.office, values: ['مكتب رئيس الهيئة']);
+      expect(store.currentUser!.orgLines, ['المكتب: مكتب رئيس الهيئة']);
+      expect(
+        () => store.updateProfile(kind: OrgKind.office, values: ['مكتب'], phone: '12'),
+        throwsA(isA<LibraryException>()),
+      );
+      store.updateProfile(kind: null);
+      expect(store.currentUser!.orgLines, isEmpty);
+    });
+  });
+
   group('SearchCubit', () {
     test('التصفية بالنوع تعيد كتباً من النوع نفسه فقط', () {
       store.login('user1', '1234');
