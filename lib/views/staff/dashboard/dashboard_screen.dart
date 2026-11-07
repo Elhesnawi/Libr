@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:librarry_app/core/brand.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/views/staff/activity_log/activity_log_screen.dart';
 import 'package:librarry_app/views/staff/announcements/announcements_screen.dart';
@@ -65,8 +66,15 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
+                  gradient: Brand.darkCard,
                   borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Brand.navyDeep.withValues(alpha: 0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,11 +83,11 @@ class DashboardScreen extends StatelessWidget {
                       'أهلاً، ${user.fullName}',
                       style: text.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: scheme.onPrimaryContainer,
+                        color: Colors.white,
                       ),
                     ),
                     Text(user.role.label,
-                        style: TextStyle(color: scheme.onPrimaryContainer)),
+                        style: TextStyle(color: Brand.glass(0.75))),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -191,22 +199,25 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color: Brand.glass(0.12),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Brand.glass(0.14)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Brand.glass(0.75)),
+          ),
           Text(
             value,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: danger ? scheme.error : null,
+                  color: danger ? Brand.badOnDark : Colors.white,
                 ),
           ),
         ],

@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/models/library_type.dart';
+import 'package:librarry_app/services/credential_store.dart';
 import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/views/auth/auth_cubit.dart';
 import 'package:librarry_app/views/common/change_password/change_password_cubit.dart';
 import 'package:librarry_app/views/login/login_cubit.dart';
 import 'package:librarry_app/views/staff/book_form/book_form_cubit.dart';
+import 'package:librarry_app/views/user/home/home_cubit.dart';
 import 'package:librarry_app/views/user/loans/loans_cubit.dart';
 import 'package:librarry_app/views/user/search/search_cubit.dart';
 
@@ -42,6 +44,67 @@ void main() {
       expect(auth.state.user, isNull);
       login.toggleObscure();
       expect(login.state.obscure, isFalse);
+      expect(login.state.error, isNotNull, reason: 'تبديل الإخفاء لا يمسح رسالة الخطأ');
+    });
+
+    test('تذكّر كلمة المرور: يحفظ بعد نجاح الدخول فقط', () async {
+      final creds = MemoryCredentialStore();
+      final auth = AuthCubit();
+      final login = LoginCubit(auth, credentials: creds);
+      login.setRemember(true);
+      await login.submit('user1', 'خطأ');
+      expect(await creds.read(), isNull, reason: 'الدخول الفاشل لا يحفظ شيئاً');
+      await login.submit('user1', '1234');
+      final saved = await creds.read();
+      expect(saved?.username, 'user1');
+      expect(saved?.password, '1234');
+      await auth.close();
+      await login.close();
+    });
+
+    test('إلغاء الخيار يمسح المحفوظ، وloadSaved يفعّل الخيار', () async {
+      final creds = MemoryCredentialStore();
+      await creds.save('user1', '1234');
+      final auth = AuthCubit();
+      final login = LoginCubit(auth, credentials: creds);
+      final saved = await login.loadSaved();
+      expect(saved?.username, 'user1');
+      expect(login.state.remember, isTrue);
+      login.setRemember(false);
+      await login.submit('user1', '1234');
+      expect(await creds.read(), isNull);
+      await auth.close();
+      await login.close();
+    });
+  });
+
+  group('HomeCubit', () {
+    test('اختيار قسم يغيّر الكتب المعروضة ولا يتأثر القسم الآخر', () {
+      store.login('user1', '1234');
+      final cubit = HomeCubit();
+      final shelves = cubit.state.paper.shelves;
+      expect(shelves, isNotEmpty);
+      expect(shelves.every((s) => s.books.isNotEmpty), isTrue,
+          reason: 'الأقسام الفارغة لا تظهر');
+      expect(cubit.state.paper.selected?.category.id, shelves.first.category.id);
+      final digitalBefore = cubit.state.digital.selected?.category.id;
+      if (shelves.length > 1) {
+        final second = shelves[1].category.id;
+        cubit.selectCategory(LibraryType.paper, second);
+        final shown = cubit.state.paper.selected!;
+        expect(shown.category.id, second);
+        expect(shown.books.every((b) => !b.isDigital && b.categoryId == second), isTrue);
+        expect(cubit.state.digital.selected?.category.id, digitalBefore);
+      }
+      cubit.close();
+    });
+
+    test('الاقتراحات حتى 8 كتب والبطاقة تعرض موعد الإرجاع القادم', () {
+      store.login('user1', '1234');
+      final cubit = HomeCubit();
+      expect(cubit.state.suggestions.length, lessThanOrEqualTo(8));
+      expect(cubit.state.nextLoan, cubit.state.loans.isEmpty ? isNull : isNotNull);
+      cubit.close();
     });
   });
 
