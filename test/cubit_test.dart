@@ -27,7 +27,7 @@ void main() {
     test('الدخول يحدّث الحالة والخروج يمسحها', () async {
       final auth = AuthCubit();
       expect(auth.state.user, isNull);
-      auth.login('user1', '1234');
+      auth.login('user1', '123456');
       await Future<void>.delayed(Duration.zero);
       expect(auth.state.user?.username, 'user1');
       auth.logout();
@@ -54,24 +54,24 @@ void main() {
       login.setRemember(true);
       await login.submit('user1', 'خطأ');
       expect(await creds.read(), isNull, reason: 'الدخول الفاشل لا يحفظ شيئاً');
-      await login.submit('user1', '1234');
+      await login.submit('user1', '123456');
       final saved = await creds.read();
       expect(saved?.username, 'user1');
-      expect(saved?.password, '1234');
+      expect(saved?.password, '123456');
       await auth.close();
       await login.close();
     });
 
     test('إلغاء الخيار يمسح المحفوظ، وloadSaved يفعّل الخيار', () async {
       final creds = MemoryCredentialStore();
-      await creds.save('user1', '1234');
+      await creds.save('user1', '123456');
       final auth = AuthCubit();
       final login = LoginCubit(auth, credentials: creds);
       final saved = await login.loadSaved();
       expect(saved?.username, 'user1');
       expect(login.state.remember, isTrue);
       login.setRemember(false);
-      await login.submit('user1', '1234');
+      await login.submit('user1', '123456');
       expect(await creds.read(), isNull);
       await auth.close();
       await login.close();
@@ -80,7 +80,7 @@ void main() {
 
   group('HomeCubit', () {
     test('اختيار قسم يغيّر الكتب المعروضة ولا يتأثر القسم الآخر', () {
-      store.login('user1', '1234');
+      store.login('user1', '123456');
       final cubit = HomeCubit();
       final shelves = cubit.state.paper.shelves;
       expect(shelves, isNotEmpty);
@@ -100,7 +100,7 @@ void main() {
     });
 
     test('الاقتراحات حتى 8 كتب والبطاقة تعرض موعد الإرجاع القادم', () {
-      store.login('user1', '1234');
+      store.login('user1', '123456');
       final cubit = HomeCubit();
       expect(cubit.state.suggestions.length, lessThanOrEqualTo(8));
       expect(cubit.state.nextLoan, cubit.state.loans.isEmpty ? isNull : isNotNull);
@@ -110,7 +110,7 @@ void main() {
 
   group('بيانات الحساب', () {
     test('إدارة عامة: الحقل الأول مطلوب والثاني اختياري وتظهر في أسطر البطاقة', () {
-      store.login('user1', '1234');
+      store.login('user1', '123456');
       expect(
         () => store.updateProfile(kind: OrgKind.general, values: ['', 'إدارة التوثيق']),
         throwsA(isA<LibraryException>()),
@@ -129,7 +129,7 @@ void main() {
     });
 
     test('فرع ومكتب، ورقم هاتف غير صالح يُرفض، والمسح يفرّغ الجهة', () {
-      store.login('user1', '1234');
+      store.login('user1', '123456');
       store.updateProfile(kind: OrgKind.branch, values: ['فرع بنغازي', '']);
       expect(store.currentUser!.orgLines, ['اسم الفرع: فرع بنغازي']);
       store.updateProfile(kind: OrgKind.office, values: ['مكتب رئيس الهيئة']);
@@ -145,7 +145,7 @@ void main() {
 
   group('SearchCubit', () {
     test('التصفية بالنوع تعيد كتباً من النوع نفسه فقط', () {
-      store.login('user1', '1234');
+      store.login('user1', '123456');
       final cubit = SearchCubit();
       cubit.setType(LibraryType.digital);
       expect(cubit.state.results, isNotEmpty);
@@ -158,7 +158,7 @@ void main() {
 
   group('LoansCubit', () {
     test('تتحدث القائمة عند الاستعارة تلقائياً', () async {
-      store.login('user1', '1234');
+      store.login('user1', '123456');
       final cubit = LoansCubit();
       final before = cubit.state.entries.length;
       final book = store.books.firstWhere(
@@ -185,7 +185,7 @@ void main() {
 
   group('BookFormCubit', () {
     test('الحفظ بدون غلاف يرمي خطأ تحقق', () {
-      store.login('admin', '1234');
+      store.login('admin', '123456');
       final cubit = BookFormCubit(null);
       expect(
         () => cubit.save(title: 'كتاب', author: 'مؤلف', copiesText: '1'),

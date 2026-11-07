@@ -15,5 +15,9 @@ class UsersCubit extends StoreCubit<UsersState> {
   /// تعطيل حساب بسبب إلزامي. يرمي [LibraryException] عند المخالفة.
   void disable(String username, String reason) => store.disableUser(username, reason);
 
+  /// إعادة تعيين كلمة مرور حساب. يرمي [LibraryException] عند المخالفة.
+  void resetPassword(String username, String newPassword) =>
+      store.resetPassword(username, newPassword);
+
   void enable(String username) => store.enableUser(username);
 }

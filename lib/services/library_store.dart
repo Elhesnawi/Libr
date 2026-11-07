@@ -24,7 +24,8 @@ class LibraryStore extends ChangeNotifier {
   static const int maxLoans = 3;
   static const int loanDays = 14;
   static const int extendDays = 7;
-  static const String tempPassword = '1234';
+  static const String tempPassword = '123456';
+  static const int minPasswordLength = 6;
 
   final List<AppUser> _users = [];
   final List<BookCategory> _categories = [];
@@ -646,6 +647,28 @@ class LibraryStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// إعادة تعيين كلمة مرور أي حساب آخر. للمدير فقط.
+  /// يصل صاحب الحساب إشعار ليغيّرها بعد الدخول، وتُسجَّل العملية.
+  void resetPassword(String username, String newPassword) {
+    final me = _requireAdmin();
+    if (username == me.username) {
+      throw const LibraryException('غيّر كلمة مرورك من «بيانات حسابي»');
+    }
+    final user = userByName(username);
+    if (user == null) throw const LibraryException('المستخدم غير موجود');
+    if (newPassword.length < minPasswordLength) {
+      throw const LibraryException('كلمة المرور يجب ألا تقل عن 6 أحرف');
+    }
+    user.password = newPassword;
+    _addNotification(
+      username,
+      'أُعيد تعيين كلمة مرورك',
+      'غيّرها من «بيانات حسابي» بعد الدخول',
+    );
+    _log('إعادة تعيين كلمة مرور $username');
+    notifyListeners();
+  }
+
   int get _activeAdmins =>
       _users.where((u) => u.role == UserRole.admin && !u.disabled).length;
 
@@ -690,7 +713,7 @@ class LibraryStore extends ChangeNotifier {
     if (me.password != oldPassword) {
       throw const LibraryException('كلمة المرور الحالية غير صحيحة');
     }
-    if (newPassword.length < 6) {
+    if (newPassword.length < minPasswordLength) {
       throw const LibraryException('كلمة المرور الجديدة يجب ألا تقل عن 6 أحرف');
     }
     me.password = newPassword;
@@ -1030,24 +1053,24 @@ class LibraryStore extends ChangeNotifier {
         username: 'user1',
         fullName: 'طارق',
         role: UserRole.user,
-        password: '1234',
+        password: tempPassword,
         lastLogin: now.subtract(const Duration(days: 1)),
       ),
       AppUser(
           username: 'user2',
           fullName: 'خالد',
           role: UserRole.user,
-          password: '1234'),
+          password: tempPassword),
       AppUser(
           username: 'lib1',
           fullName: 'سالم',
           role: UserRole.librarian,
-          password: '1234'),
+          password: tempPassword),
       AppUser(
           username: 'admin',
           fullName: 'مدير النظام',
           role: UserRole.admin,
-          password: '1234'),
+          password: tempPassword),
     ]);
 
     _categories.addAll([
