@@ -5,13 +5,26 @@ import 'package:librarry_app/services/theme_preference.dart';
 import 'package:librarry_app/views/auth/auth_cubit.dart';
 import 'package:librarry_app/views/auth/auth_state.dart';
 import 'package:librarry_app/views/splash/splash_screen.dart';
+import 'package:librarry_app/config/supabase_config.dart';
+// نخفي AuthState الخاص بـ Supabase لأنه يتعارض مع AuthState الخاص بالتطبيق.
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // الاتصال بـ Supabase قبل تشغيل التطبيق.
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.publishableKey,
+  );
+
   // يسترجع الوضع الليلي المحفوظ قبل رسم أول شاشة.
   LibraryStore.instance.setDarkMode(await ThemePreference.load());
   runApp(const LibraryApp());
 }
+
+/// عميل Supabase للاستخدام في باقي الملفات.
+final supabase = Supabase.instance.client;
 
 class LibraryApp extends StatelessWidget {
   const LibraryApp({super.key});
