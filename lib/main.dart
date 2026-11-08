@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:librarry_app/services/library_store.dart';
+import 'package:librarry_app/services/theme_preference.dart';
 import 'package:librarry_app/views/auth/auth_cubit.dart';
 import 'package:librarry_app/views/auth/auth_state.dart';
 import 'package:librarry_app/views/splash/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // يسترجع الوضع الليلي المحفوظ قبل رسم أول شاشة.
+  LibraryStore.instance.setDarkMode(await ThemePreference.load());
   runApp(const LibraryApp());
 }
 

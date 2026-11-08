@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:librarry_app/models/library_models.dart';
+import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/utils/arabic_text.dart';
 import 'package:librarry_app/views/staff/user_form/user_form_screen.dart';
 import 'package:librarry_app/views/staff/users/users_cubit.dart';
@@ -74,6 +75,22 @@ class _UserCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(isMe ? '${u.username} · أنت' : u.username),
+              // جهة العمل والهاتف كما أدخلهما صاحب الحساب (يراها المدير فقط).
+              for (final line in u.orgLines)
+                Text(line, style: Theme.of(context).textTheme.bodySmall),
+              if (u.phone.isNotEmpty)
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text('☎ ${u.phone}', style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                ),
+              if (u.orgLines.isEmpty && u.phone.isEmpty)
+                Text(
+                  'لم يُدخل بيانات الجهة',
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                ),
               if (u.disabled)
                 Text(
                   'السبب: ${u.disabledReason}'
@@ -96,6 +113,11 @@ class _UserCard extends StatelessWidget {
                           DropdownMenuItem(value: r, child: Text(r.shortLabel)),
                       ],
                       onChanged: (r) => _changeRole(context, r),
+                    ),
+                    IconButton(
+                      tooltip: 'إعادة تعيين كلمة المرور',
+                      icon: const Icon(Icons.lock_reset),
+                      onPressed: () => _resetPassword(context),
                     ),
                     IconButton(
                       tooltip: u.disabled ? 'إعادة التفعيل' : 'تعطيل الحساب',
@@ -130,6 +152,21 @@ class _UserCard extends StatelessWidget {
       () => cubit.setRole(user.username, r),
       success: 'تم تغيير الدور',
       ms: 500,
+    );
+  }
+
+  Future<void> _resetPassword(BuildContext context) async {
+    final cubit = context.read<UsersCubit>();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (_) => _ResetPasswordDialog(name: user.fullName),
+    );
+    if (password == null || !context.mounted) return;
+    await runAction(
+      context,
+      () => cubit.resetPassword(user.username, password),
+      success: 'تم تعيين كلمة مرور جديدة لحساب ${user.fullName}',
+      ms: 600,
     );
   }
 
@@ -227,6 +264,73 @@ class _DisableDialogState extends State<_DisableDialog> {
           onPressed: _submit,
           child: const Text('تعطيل'),
         ),
+      ],
+    );
+  }
+}
+
+/// نافذة إعادة تعيين كلمة المرور: يكتب المدير كلمة جديدة (6 أحرف على الأقل).
+class _ResetPasswordDialog extends StatefulWidget {
+  const _ResetPasswordDialog({required this.name});
+
+  final String name;
+
+  @override
+  State<_ResetPasswordDialog> createState() => _ResetPasswordDialogState();
+}
+
+class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
+  final _password = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _password.text;
+    if (text.length < LibraryStore.minPasswordLength) {
+      setState(() => _error = 'كلمة المرور يجب ألا تقل عن ${LibraryStore.minPasswordLength} أحرف');
+      return;
+    }
+    Navigator.of(context).pop(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('إعادة تعيين كلمة المرور'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'تعيين كلمة مرور جديدة لحساب ${widget.name}. تُسجَّل العملية في سجل '
+            'النشاط ويصله إشعار ليغيّرها بعد الدخول.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _password,
+            autofocus: true,
+            autocorrect: false,
+            textDirection: TextDirection.ltr,
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              labelText: 'كلمة المرور الجديدة (6 أحرف على الأقل)',
+              errorText: _error,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('تعيين')),
       ],
     );
   }

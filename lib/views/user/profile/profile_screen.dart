@@ -2,9 +2,12 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:librarry_app/models/library_models.dart';
+import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/views/common/change_password/change_password_screen.dart';
+import 'package:librarry_app/views/user/profile/account_data_card.dart';
 import 'package:librarry_app/views/user/profile/profile_cubit.dart';
 import 'package:librarry_app/views/user/profile/profile_state.dart';
+import 'package:librarry_app/views/user/shell/shell_navigation.dart';
 import 'package:librarry_app/widgets/common.dart';
 import 'package:librarry_app/widgets/library_app_bar.dart';
 
@@ -37,18 +40,50 @@ class ProfileView extends StatelessWidget {
           style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
+        AccountDataCard(key: ValueKey(user.username), user: user),
+        const SizedBox(height: 12),
         Card(
           elevation: 0,
           color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
           child: Column(
             children: [
-              SwitchListTile(
-                secondary: const Icon(Icons.dark_mode_outlined),
-                title: const Text('الوضع الليلي'),
-                value: state.darkMode,
-                onChanged: context.read<ProfileCubit>().setDarkMode,
-              ),
-              const Divider(height: 1),
+              // الكتب المستعارة والمفضلة للمستخدم العادي فقط (انتقلت من بطاقة الترحيب).
+              if (!user.role.isStaff) ...[
+                ListTile(
+                  leading: const Icon(Icons.menu_book_outlined),
+                  title: const Text('الكتب المستعارة'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${state.loansCount} من ${LibraryStore.maxLoans}',
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.chevron_left),
+                    ],
+                  ),
+                  onTap: () => switchTab(context, 2),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.bookmark_border),
+                  title: const Text('الكتب المفضلة'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${state.favoritesCount}',
+                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.chevron_left),
+                    ],
+                  ),
+                  onTap: () => switchTab(context, 3),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 leading: const Icon(Icons.lock_outline),
                 title: const Text('تغيير كلمة المرور'),
@@ -94,7 +129,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      appBar: LibraryAppBar(title: 'حسابي'),
+      appBar: LibraryAppBar(title: 'بيانات حسابي'),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: ProfileView(),

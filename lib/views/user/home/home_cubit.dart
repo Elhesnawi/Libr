@@ -4,15 +4,28 @@ import 'package:librarry_app/services/library_store.dart';
 import 'package:librarry_app/views/user/home/home_state.dart';
 
 class HomeCubit extends StoreCubit<HomeState> {
-  HomeCubit()
-      : super(HomeState.from(LibraryStore.instance, type: LibraryType.paper));
+  HomeCubit() : super(HomeState.from(LibraryStore.instance));
 
-  void setQuery(String query) =>
-      emit(HomeState.from(store, type: state.type, query: query));
+  /// القسم المختار في كل من الكتب الرقمية والمكتبة الورقية.
+  int? _digitalCategoryId;
+  int? _paperCategoryId;
 
-  void setType(LibraryType type) =>
-      emit(HomeState.from(store, type: type, query: state.query));
+  HomeState _build() => HomeState.from(
+        store,
+        digitalCategoryId: _digitalCategoryId,
+        paperCategoryId: _paperCategoryId,
+      );
+
+  /// يغيّر القسم المختار فتتغير الكتب المعروضة تحته.
+  void selectCategory(LibraryType type, int categoryId) {
+    if (type == LibraryType.digital) {
+      _digitalCategoryId = categoryId;
+    } else {
+      _paperCategoryId = categoryId;
+    }
+    emit(_build());
+  }
 
   @override
-  void refresh() => emit(HomeState.from(store, type: state.type, query: state.query));
+  void refresh() => emit(_build());
 }

@@ -39,6 +39,34 @@ extension UserRoleX on UserRole {
   bool get isStaff => this != UserRole.user;
 }
 
+/// نوع جهة العمل: إدارة عامة، فرع، أو مكتب.
+enum OrgKind { general, branch, office }
+
+extension OrgKindX on OrgKind {
+  String get label {
+    switch (this) {
+      case OrgKind.general:
+        return 'إدارة عامة';
+      case OrgKind.branch:
+        return 'فرع';
+      case OrgKind.office:
+        return 'مكتب';
+    }
+  }
+
+  /// أسماء الحقول لكل نوع (الأول مطلوب، والثاني اختياري إن وُجد).
+  List<String> get fieldLabels {
+    switch (this) {
+      case OrgKind.general:
+        return const ['الإدارة العامة', 'الإدارة الفرعية'];
+      case OrgKind.branch:
+        return const ['اسم الفرع', 'الإدارة'];
+      case OrgKind.office:
+        return const ['المكتب'];
+    }
+  }
+}
+
 class AppUser {
   AppUser({
     required this.username,
@@ -49,6 +77,9 @@ class AppUser {
     this.disabled = false,
     this.disabledReason = '',
     this.disabledAt,
+    this.orgKind,
+    this.orgValues = const [],
+    this.phone = '',
   });
 
   final String username;
@@ -61,6 +92,24 @@ class AppUser {
   bool disabled;
   String disabledReason;
   DateTime? disabledAt;
+
+  /// جهة العمل (اختيارية): النوع وقيم حقوله بنفس ترتيب [OrgKind.fieldLabels].
+  OrgKind? orgKind;
+  List<String> orgValues;
+
+  /// رقم الهاتف (اختياري).
+  String phone;
+
+  /// أسطر جهة العمل للعرض، مثل «الإدارة العامة: …». فارغة إن لم تُدخل.
+  List<String> get orgLines {
+    final kind = orgKind;
+    if (kind == null) return const [];
+    final labels = kind.fieldLabels;
+    return [
+      for (var i = 0; i < labels.length && i < orgValues.length; i++)
+        if (orgValues[i].trim().isNotEmpty) '${labels[i]}: ${orgValues[i]}',
+    ];
+  }
 }
 
 /// أيقونات الأقسام (نخزّن المفتاح بدل الأيقونة ليسهل حفظه لاحقاً في قاعدة بيانات).

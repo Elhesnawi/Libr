@@ -24,7 +24,8 @@ class LibraryStore extends ChangeNotifier {
   static const int maxLoans = 3;
   static const int loanDays = 14;
   static const int extendDays = 7;
-  static const String tempPassword = '1234';
+  static const String tempPassword = '123456';
+  static const int minPasswordLength = 6;
 
   final List<AppUser> _users = [];
   final List<BookCategory> _categories = [];
@@ -116,6 +117,51 @@ class LibraryStore extends ChangeNotifier {
   void setDarkMode(bool value) {
     _darkMode = value;
     notifyListeners();
+  }
+
+  /// يحفظ بيانات حساب المستخدم الحالي: جهة العمل ورقم الهاتف (كلاهما اختياري).
+  /// عند اختيار نوع جهة يلزم حقله الأول، والثاني اختياري.
+  void updateProfile({
+    required OrgKind? kind,
+    List<String> values = const [],
+    String phone = '',
+  }) {
+    final me = _requireLogin();
+    var vals = <String>[];
+    if (kind != null) {
+      final labels = kind.fieldLabels;
+      vals = [
+        for (var i = 0; i < labels.length; i++)
+          i < values.length ? values[i].trim() : '',
+      ];
+      if (vals.first.isEmpty) {
+        throw LibraryException('أدخل ${labels.first}');
+      }
+    }
+    final digits = _normalizeDigits(phone).replaceAll(RegExp(r'[\s\-+()]'), '');
+    if (digits.isNotEmpty && !RegExp(r'^\d{9,15}$').hasMatch(digits)) {
+      throw const LibraryException('رقم الهاتف غير صحيح (من 9 إلى 15 رقماً)');
+    }
+    me.orgKind = kind;
+    me.orgValues = vals;
+    me.phone = digits;
+    _log('تحديث بيانات الحساب');
+    notifyListeners();
+  }
+
+  /// يحوّل الأرقام العربية والهندية إلى أرقام لاتينية.
+  static String _normalizeDigits(String s) {
+    final b = StringBuffer();
+    for (final r in s.runes) {
+      if (r >= 0x0660 && r <= 0x0669) {
+        b.writeCharCode(r - 0x0660 + 48);
+      } else if (r >= 0x06F0 && r <= 0x06F9) {
+        b.writeCharCode(r - 0x06F0 + 48);
+      } else {
+        b.writeCharCode(r);
+      }
+    }
+    return b.toString();
   }
 
   // ───────────────────────── حراس الصلاحيات ─────────────────────────
@@ -601,6 +647,28 @@ class LibraryStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// إعادة تعيين كلمة مرور أي حساب آخر. للمدير فقط.
+  /// يصل صاحب الحساب إشعار ليغيّرها بعد الدخول، وتُسجَّل العملية.
+  void resetPassword(String username, String newPassword) {
+    final me = _requireAdmin();
+    if (username == me.username) {
+      throw const LibraryException('غيّر كلمة مرورك من «بيانات حسابي»');
+    }
+    final user = userByName(username);
+    if (user == null) throw const LibraryException('المستخدم غير موجود');
+    if (newPassword.length < minPasswordLength) {
+      throw const LibraryException('كلمة المرور يجب ألا تقل عن 6 أحرف');
+    }
+    user.password = newPassword;
+    _addNotification(
+      username,
+      'أُعيد تعيين كلمة مرورك',
+      'غيّرها من «بيانات حسابي» بعد الدخول',
+    );
+    _log('إعادة تعيين كلمة مرور $username');
+    notifyListeners();
+  }
+
   int get _activeAdmins =>
       _users.where((u) => u.role == UserRole.admin && !u.disabled).length;
 
@@ -645,7 +713,7 @@ class LibraryStore extends ChangeNotifier {
     if (me.password != oldPassword) {
       throw const LibraryException('كلمة المرور الحالية غير صحيحة');
     }
-    if (newPassword.length < 6) {
+    if (newPassword.length < minPasswordLength) {
       throw const LibraryException('كلمة المرور الجديدة يجب ألا تقل عن 6 أحرف');
     }
     me.password = newPassword;
@@ -895,7 +963,7 @@ class LibraryStore extends ChangeNotifier {
 
   /// اقتراحات المكتبة الذكية: من الأقسام التي يهتم بها المستخدم،
   /// أو الأكثر استعارة إن كان مستخدماً جديداً.
-  List<Book> suggestionsFor(String username, {int limit = 2}) {
+  List<Book> suggestionsFor(String username, {int limit = 8}) {
     if (!hasActivity(username)) {
       return topBooks(limit: limit).map((e) => e.key).toList();
     }
@@ -985,24 +1053,24 @@ class LibraryStore extends ChangeNotifier {
         username: 'user1',
         fullName: 'طارق',
         role: UserRole.user,
-        password: '1234',
+        password: tempPassword,
         lastLogin: now.subtract(const Duration(days: 1)),
       ),
       AppUser(
           username: 'user2',
           fullName: 'خالد',
           role: UserRole.user,
-          password: '1234'),
+          password: tempPassword),
       AppUser(
           username: 'lib1',
           fullName: 'سالم',
           role: UserRole.librarian,
-          password: '1234'),
+          password: tempPassword),
       AppUser(
           username: 'admin',
           fullName: 'مدير النظام',
           role: UserRole.admin,
-          password: '1234'),
+          password: tempPassword),
     ]);
 
     _categories.addAll([
