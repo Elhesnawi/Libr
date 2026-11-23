@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:librarry_app/services/library_store.dart';
+import 'package:librarry_app/services/remote_auth.dart';
 import 'package:librarry_app/services/theme_preference.dart';
 import 'package:librarry_app/views/auth/auth_cubit.dart';
 import 'package:librarry_app/views/auth/auth_state.dart';
@@ -34,7 +35,7 @@ class LibraryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuthCubit(),
+      create: (_) => AuthCubit(remote: SupabaseRemoteAuth()),
       child: BlocBuilder<AuthCubit, AuthState>(
         buildWhen: (previous, current) => previous.darkMode != current.darkMode,
         builder: (context, auth) => MaterialApp(

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show ChangeNotifier, visibleForTesting;
 import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/models/library_type.dart';
+import 'package:librarry_app/services/remote_auth.dart';
 import 'package:librarry_app/utils/arabic_text.dart';
 
 /// مخزن بيانات المكتبة (محلي ومؤقت في الذاكرة).
@@ -102,6 +103,35 @@ class LibraryStore extends ChangeNotifier {
       );
     }
     _previousLogin = user.lastLogin;
+    user.lastLogin = DateTime.now();
+    _current = user;
+    _refreshDueNotifications(user);
+    notifyListeners();
+  }
+
+  /// دخول ناجح عبر الخادم: نُنشئ/نحدّث المستخدم المحلي من بيانات profiles
+  /// ونجعله المستخدم الحالي. كلمة المرور لا تُحفظ محلياً.
+  void loginRemote(RemoteProfile p) {
+    final name = p.username.toLowerCase();
+    var user = userByName(name);
+    if (user == null) {
+      user = AppUser(
+        username: name,
+        fullName: p.fullName,
+        role: p.role,
+        password: '',
+      );
+      _users.add(user);
+    }
+    user
+      ..fullName = p.fullName
+      ..role = p.role
+      ..password = ''
+      ..orgKind = p.orgKind
+      ..orgValues = p.orgValues
+      ..phone = p.phone
+      ..disabled = false;
+    _previousLogin = p.lastLogin;
     user.lastLogin = DateTime.now();
     _current = user;
     _refreshDueNotifications(user);
