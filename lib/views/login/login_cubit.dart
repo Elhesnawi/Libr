@@ -31,7 +31,7 @@ class LoginCubit extends Cubit<LoginState> {
     final remember = state.remember;
     emit(LoginState(obscure: state.obscure, remember: remember));
     try {
-      _auth.login(username, password);
+      await _auth.signIn(username, password);
     } on LibraryException catch (e) {
       if (!isClosed) {
         emit(LoginState(obscure: state.obscure, remember: remember, error: e.message));

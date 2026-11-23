@@ -3,6 +3,7 @@ import 'package:librarry_app/models/library_models.dart';
 import 'package:librarry_app/models/library_type.dart';
 import 'package:librarry_app/services/credential_store.dart';
 import 'package:librarry_app/services/library_store.dart';
+import 'package:librarry_app/services/remote_auth.dart';
 import 'package:librarry_app/views/auth/auth_cubit.dart';
 import 'package:librarry_app/views/common/change_password/change_password_cubit.dart';
 import 'package:librarry_app/views/login/login_cubit.dart';
@@ -36,15 +37,35 @@ void main() {
       await auth.close();
     });
 
-    test('بيانات خاطئة تظهر كرسالة خطأ ولا تدخل', () {
+    test('بيانات خاطئة تظهر كرسالة خطأ ولا تدخل', () async {
       final auth = AuthCubit();
       final login = LoginCubit(auth);
-      login.submit('user1', 'خطأ');
+      await login.submit('user1', 'خطأ');
       expect(login.state.error, isNotNull);
       expect(auth.state.user, isNull);
       login.toggleObscure();
       expect(login.state.obscure, isFalse);
       expect(login.state.error, isNotNull, reason: 'تبديل الإخفاء لا يمسح رسالة الخطأ');
+    });
+
+    test('الدخول عبر الخادم يبني المستخدم من بيانات profiles', () async {
+      final auth = AuthCubit(remote: _FakeRemote());
+      final login = LoginCubit(auth, credentials: MemoryCredentialStore());
+      await login.submit('Boss', 'x');
+      expect(login.state.error, 'اسم المستخدم أو كلمة المرور غير صحيحة');
+      expect(auth.state.user, isNull);
+      await login.submit('boss', 'good');
+      await Future<void>.delayed(Duration.zero);
+      final u = auth.state.user;
+      expect(u?.username, 'boss');
+      expect(u?.role, UserRole.admin);
+      expect(u?.fullName, 'مدير تجريبي');
+      expect(u?.password, isEmpty, reason: 'كلمة المرور لا تُخزَّن محلياً');
+      auth.logout();
+      await Future<void>.delayed(Duration.zero);
+      expect(auth.state.user, isNull);
+      await auth.close();
+      await login.close();
     });
 
     test('تذكّر كلمة المرور: يحفظ بعد نجاح الدخول فقط', () async {
@@ -194,4 +215,22 @@ void main() {
       cubit.close();
     });
   });
+}
+
+
+class _FakeRemote implements RemoteAuth {
+  @override
+  Future<RemoteProfile> signIn(String username, String password) async {
+    if (username != 'boss' || password != 'good') {
+      throw const LibraryException('اسم المستخدم أو كلمة المرور غير صحيحة');
+    }
+    return const RemoteProfile(
+      username: 'boss',
+      fullName: 'مدير تجريبي',
+      role: UserRole.admin,
+    );
+  }
+
+  @override
+  Future<void> signOut() async {}
 }
